@@ -33,6 +33,50 @@ Please read these points before using this application:
 ---
 
 
+## 🚀 Supabase Setup Guide
+
+### 1. Create a Supabase Project
+1. Log in to your [Supabase Dashboard](https://supabase.com/dashboard).
+2. Click **New Project** and choose a name and database password.
+
+### 2. Configure Storage Bucket and RLS Policies
+1. In the Supabase Dashboard, navigate to the **SQL Editor** (terminal icon in sidebar).
+2. Click **New Query**.
+3. Open [`supabase-setup.sql`](file:///d:/cybertitans/zk-kyc/supabase-setup.sql) in this repository, copy its contents, paste them into the editor, and click **Run**.
+4. This script automatically:
+   - Creates the private storage bucket: `encrypted-documents`.
+   - Adds RLS policies for `INSERT`, `SELECT`, `DELETE`, and `UPDATE` on `storage.objects`.
+   - Enforces path isolation so each user can only access their own folder: `{auth.uid}/*`.
+
+### 3. Configure Authentication
+1. Go to **Authentication** -> **Providers** -> **Email**:
+   - Ensure Email provider is enabled.
+   - For rapid local testing without waiting for verification emails, you can toggle off **Confirm email** in **Authentication** -> **URL Configuration / Email Templates** (or under Auth settings).
+2. *(Optional)* To allow guest uploads without registering an email:
+   - Go to **Authentication** -> **Sign In / Up** -> **Anonymous Sign-ins**.
+   - Toggle **Enable Anonymous Sign-ins** to **ON**.
+
+### 4. Configure Bot & Captcha Protection (hCaptcha)
+If Captcha protection is enabled in your Supabase dashboard (**Authentication** -> **Bot & Abuse Protection**):
+1. Select **hCaptcha** as the captcha provider.
+2. Enter your hCaptcha secret key into the Supabase dashboard.
+3. Copy your hCaptcha **Site Key** and paste it into [`supabase-config.js`](file:///d:/cybertitans/zk-kyc/supabase-config.js) under `hcaptchaSiteKey`.
+   *(During development or local testing, you can use the official hCaptcha test key: `10000000-ffff-ffff-ffff-000000000001`)*
+
+### 5. Connect Your Credentials
+1. Go to **Project Settings** -> **API**.
+2. Copy your **Project URL** and **anon public** API key.
+3. Open [`supabase-config.js`](file:///d:/cybertitans/zk-kyc/supabase-config.js) and paste them:
+   ```javascript
+   export const supabaseConfig = {
+     url: "https://your-project-id.supabase.co",
+     anonKey: "YOUR_SUPABASE_ANON_KEY",
+     bucketName: "encrypted-documents",
+     hcaptchaSiteKey: "YOUR_HCAPTCHA_SITE_KEY",
+   };
+   ```
+
+---
 
 ## 💻 Running the Application Locally
 

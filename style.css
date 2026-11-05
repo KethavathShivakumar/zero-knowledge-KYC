@@ -1460,6 +1460,15 @@ input:focus {
   gap: 14px;
 }
 
+.hcaptcha-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 78px;
+  margin: 4px 0;
+  overflow: hidden;
+}
+
 .auth-divider {
   display: flex;
   align-items: center;

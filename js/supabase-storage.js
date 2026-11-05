@@ -71,11 +71,13 @@ export async function getCurrentUser() {
  * Signs in an existing user with email and password.
  * @param {string} email
  * @param {string} password
+ * @param {string} [captchaToken] Optional hCaptcha response token
  * @returns {Promise<any>}
  */
-export async function signInWithEmail(email, password) {
+export async function signInWithEmail(email, password, captchaToken) {
   const client = await getSupabase();
-  const { data, error } = await client.auth.signInWithPassword({ email, password });
+  const options = captchaToken ? { captchaToken } : undefined;
+  const { data, error } = await client.auth.signInWithPassword({ email, password, options });
   if (error) throw error;
   return data;
 }
@@ -84,11 +86,13 @@ export async function signInWithEmail(email, password) {
  * Signs up a new user with email and password.
  * @param {string} email
  * @param {string} password
+ * @param {string} [captchaToken] Optional hCaptcha response token
  * @returns {Promise<any>}
  */
-export async function signUpWithEmail(email, password) {
+export async function signUpWithEmail(email, password, captchaToken) {
   const client = await getSupabase();
-  const { data, error } = await client.auth.signUp({ email, password });
+  const options = captchaToken ? { captchaToken } : undefined;
+  const { data, error } = await client.auth.signUp({ email, password, options });
   if (error) throw error;
   return data;
 }
@@ -339,6 +343,9 @@ export function friendlySupabaseError(error) {
   }
   if (msg.includes("Invalid login credentials")) {
     return "Incorrect email or password. Please try again.";
+  }
+  if (msg.toLowerCase().includes("captcha")) {
+    return "Captcha verification required or failed. Please check the captcha box and try again.";
   }
   if (msg.includes("Email not confirmed")) {
     return "Please confirm your email address before signing in, or disable email confirmation in Supabase Auth settings.";

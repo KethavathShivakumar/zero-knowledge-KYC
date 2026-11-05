@@ -77,6 +77,7 @@ const els = {
   authForm: $("authForm"),
   authEmailInput: $("authEmailInput"),
   authPasswordInput: $("authPasswordInput"),
+  authHcaptcha: $("authHcaptcha"),
   authErrorMessage: $("authErrorMessage"),
   authSubmitBtn: $("authSubmitBtn"),
   authAnonymousBtn: $("authAnonymousBtn"),
@@ -300,12 +301,60 @@ function updateAuthUI(user) {
   }
 }
 
+let hcaptchaWidgetId = null;
+
+function renderHcaptchaIfNeeded() {
+  const container = els.authHcaptcha || document.getElementById("authHcaptcha");
+  if (!container) return;
+
+  const sitekey = supabaseConfig.hcaptchaSiteKey || "10000000-ffff-ffff-ffff-000000000001";
+  container.setAttribute("data-sitekey", sitekey);
+
+  if (typeof globalThis.hcaptcha !== "undefined" && typeof globalThis.hcaptcha.render === "function") {
+    if (!container.hasChildNodes()) {
+      try {
+        hcaptchaWidgetId = globalThis.hcaptcha.render(container, {
+          sitekey: sitekey,
+          theme: "light",
+        });
+      } catch { /* already rendered */ }
+    }
+  }
+}
+
+function getHcaptchaToken() {
+  if (typeof globalThis.hcaptcha !== "undefined") {
+    try {
+      if (hcaptchaWidgetId !== null && typeof globalThis.hcaptcha.getResponse === "function") {
+        return globalThis.hcaptcha.getResponse(hcaptchaWidgetId) || globalThis.hcaptcha.getResponse();
+      }
+      return globalThis.hcaptcha.getResponse();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
+function resetHcaptcha() {
+  if (typeof globalThis.hcaptcha !== "undefined" && typeof globalThis.hcaptcha.reset === "function") {
+    try {
+      if (hcaptchaWidgetId !== null) {
+        globalThis.hcaptcha.reset(hcaptchaWidgetId);
+      } else {
+        globalThis.hcaptcha.reset();
+      }
+    } catch { /* ignore */ }
+  }
+}
+
 function setAuthMode(mode) {
   authMode = mode;
   els.tabSignIn.classList.toggle("active", mode === "signin");
   els.tabSignUp.classList.toggle("active", mode === "signup");
   els.authSubmitBtn.textContent = mode === "signin" ? "Sign In" : "Register Account";
   setFieldError(els.authErrorMessage, null);
+  resetHcaptcha();
 }
 
 function openAuthModal() {
@@ -314,6 +363,8 @@ function openAuthModal() {
   els.authPasswordInput.value = "";
   setFieldError(els.authErrorMessage, null);
   els.authModal.classList.remove("hidden");
+  renderHcaptchaIfNeeded();
+  resetHcaptcha();
   els.authEmailInput.focus();
 }
 
@@ -321,6 +372,7 @@ function closeAuthModal() {
   els.authModal.classList.add("hidden");
   els.authPasswordInput.value = "";
   setFieldError(els.authErrorMessage, null);
+  resetHcaptcha();
 }
 
 /* ---------- Automatic Form Clearing & Tab Switching ---------- */
@@ -1253,15 +1305,21 @@ els.authForm.addEventListener("submit", async (e) => {
     return;
   }
 
+  const captchaToken = getHcaptchaToken();
+  if (typeof globalThis.hcaptcha !== "undefined" && !captchaToken) {
+    setFieldError(els.authErrorMessage, "Please complete the captcha verification.");
+    return;
+  }
+
   setFieldError(els.authErrorMessage, null);
   els.authSubmitBtn.disabled = true;
 
   try {
     if (authMode === "signin") {
-      await signInWithEmail(email, password);
+      await signInWithEmail(email, password, captchaToken);
       showToast("Signed in successfully.", "success", 3000);
     } else {
-      await signUpWithEmail(email, password);
+      await signUpWithEmail(email, password, captchaToken);
       showToast("Account created. Check your email if confirmation is required.", "success", 4000);
     }
     closeAuthModal();
@@ -1270,6 +1328,7 @@ els.authForm.addEventListener("submit", async (e) => {
     if (currentView === "vault") loadVaultMain();
     renderSidebarVault();
   } catch (err) {
+    resetHcaptcha();
     setFieldError(els.authErrorMessage, friendlySupabaseError(err));
   } finally {
     els.authSubmitBtn.disabled = false;
@@ -1332,6 +1391,7 @@ if (["home", "encrypt", "decrypt", "vault"].includes(initHash)) {
 }
 
 updateEncryptMeter();
+window.addEventListener("load", renderHcaptchaIfNeeded);
 
 if (isSupabaseConfigured()) {
   getCurrentUser()
