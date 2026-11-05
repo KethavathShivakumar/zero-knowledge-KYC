@@ -1460,15 +1460,6 @@ input:focus {
   gap: 14px;
 }
 
-.hcaptcha-wrapper {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 78px;
-  margin: 4px 0;
-  overflow: hidden;
-}
-
 .auth-divider {
   display: flex;
   align-items: center;
@@ -1495,6 +1486,267 @@ input:focus {
   color: var(--text-muted);
   text-align: center;
   margin-top: 10px;
+}
+
+/* ==================== Multi-Factor Authentication (MFA) ==================== */
+.mfa-topbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  padding: 4px 10px;
+}
+
+.mfa-modal-card {
+  max-width: 480px;
+}
+
+.totp-challenge-header {
+  text-align: center;
+  margin-bottom: 18px;
+}
+
+.totp-shield-icon {
+  font-size: 2.2rem;
+  display: inline-block;
+  margin-bottom: 8px;
+}
+
+.totp-challenge-header h4 {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.totp-code-input {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.3em;
+  text-align: center;
+  padding: 10px 14px !important;
+  color: var(--text);
+}
+
+.mfa-status-card {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.mfa-status-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.mfa-status-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mfa-status-desc {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.mfa-badges {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.mfa-pill {
+  font-size: 0.74rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.mfa-pill-on {
+  background: var(--ok-bg);
+  color: var(--ok);
+  border: 1px solid var(--ok-border);
+}
+
+.mfa-pill-off {
+  background: var(--surface);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.mfa-pill-info {
+  background: var(--primary-light);
+  color: var(--primary);
+  border: 1px solid var(--primary-border);
+}
+
+.mfa-pill-warn {
+  background: var(--warn-bg);
+  color: var(--warn);
+  border: 1px solid var(--warn-border);
+}
+
+.mfa-factor-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 10px;
+}
+
+.mfa-enrolled-section {
+  margin-top: 14px;
+}
+
+.mfa-section-heading {
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.mfa-factors-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mfa-factor-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.mfa-factor-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.mfa-factor-name {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.mfa-factor-sub {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.mfa-action-container {
+  margin-top: 14px;
+}
+
+.mfa-notice-box {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-border);
+  color: var(--warn);
+  font-size: 0.82rem;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  margin-top: 8px;
+  text-align: center;
+}
+
+.mfa-enroll-box {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  margin-top: 16px;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.mfa-step-desc {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.mfa-qr-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 180px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+
+.mfa-qr-img {
+  width: 170px;
+  height: 170px;
+  display: block;
+}
+
+.mfa-secret-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 14px;
+}
+
+.mfa-secret-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--primary);
+  flex: 1;
+  overflow-x: auto;
+  user-select: all;
+}
+
+.mfa-btn-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.mfa-btn-row .btn {
+  flex: 1;
+}
+
+.vault-mfa-lock {
+  background: var(--warn-bg) !important;
+  border: 1px solid var(--warn-border) !important;
+}
+
+.vault-mfa-lock h3 {
+  color: var(--warn);
+  margin: 8px 0;
+}
+
+.vault-mfa-lock p {
+  color: var(--text-secondary);
+  max-width: 480px;
+  margin: 0 auto 16px;
+  font-size: 0.88rem;
 }
 
 /* ==================== Toasts ==================== */

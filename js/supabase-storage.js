@@ -71,13 +71,11 @@ export async function getCurrentUser() {
  * Signs in an existing user with email and password.
  * @param {string} email
  * @param {string} password
- * @param {string} [captchaToken] Optional hCaptcha response token
  * @returns {Promise<any>}
  */
-export async function signInWithEmail(email, password, captchaToken) {
+export async function signInWithEmail(email, password) {
   const client = await getSupabase();
-  const options = captchaToken ? { captchaToken } : undefined;
-  const { data, error } = await client.auth.signInWithPassword({ email, password, options });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw error;
   return data;
 }
@@ -86,13 +84,11 @@ export async function signInWithEmail(email, password, captchaToken) {
  * Signs up a new user with email and password.
  * @param {string} email
  * @param {string} password
- * @param {string} [captchaToken] Optional hCaptcha response token
  * @returns {Promise<any>}
  */
-export async function signUpWithEmail(email, password, captchaToken) {
+export async function signUpWithEmail(email, password) {
   const client = await getSupabase();
-  const options = captchaToken ? { captchaToken } : undefined;
-  const { data, error } = await client.auth.signUp({ email, password, options });
+  const { data, error } = await client.auth.signUp({ email, password });
   if (error) throw error;
   return data;
 }
@@ -135,6 +131,104 @@ export async function onAuthStateChange(callback) {
   }
 }
 
+/* ==================== Multi-Factor Authentication (MFA) ==================== */
+
+/**
+ * Retrieves the current user's Authenticator Assurance Level (AAL).
+ * @returns {Promise<{currentLevel: 'aal1'|'aal2'|null, nextLevel: 'aal1'|'aal2'|null, currentAuthenticationMethods: string[]}>}
+ */
+export async function getAssuranceLevel() {
+  if (!isSupabaseConfigured()) {
+    return { currentLevel: null, nextLevel: null, currentAuthenticationMethods: [] };
+  }
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Lists all MFA factors enrolled for the current authenticated user.
+ * @returns {Promise<{all: Array<any>, totp: Array<any>}>}
+ */
+export async function listMFAFactors() {
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.listFactors();
+  if (error) throw error;
+  return data || { all: [], totp: [] };
+}
+
+/**
+ * Starts TOTP factor enrollment with Supabase.
+ * Returns factor ID, manual secret, and QR code SVG.
+ * @param {string} [friendlyName]
+ * @returns {Promise<{id: string, type: 'totp', totp: {qr_code: string, secret: string, uri: string}}>}
+ */
+export async function enrollTOTPFactor(friendlyName = "Authenticator") {
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.enroll({
+    factorType: "totp",
+    issuer: "ZeroKnowledgeKYC",
+    friendlyName,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Challenges and verifies a TOTP code for a factor.
+ * Upgrades the current session to AAL2 upon successful verification.
+ * @param {string} factorId
+ * @param {string} code 6-digit TOTP code
+ * @returns {Promise<any>}
+ */
+export async function challengeAndVerifyMFA(factorId, code) {
+  if (!factorId || typeof factorId !== "string") {
+    throw new Error("A valid factor ID is required.");
+  }
+  const cleanCode = String(code || "").trim();
+  if (!/^\d{6}$/.test(cleanCode)) {
+    throw new Error("Verification code must be exactly 6 digits.");
+  }
+
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.challengeAndVerify({
+    factorId,
+    code: cleanCode,
+  });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Unenrolls (removes) an MFA factor by factor ID.
+ * @param {string} factorId
+ * @returns {Promise<any>}
+ */
+export async function unenrollMFAFactor(factorId) {
+  if (!factorId || typeof factorId !== "string") {
+    throw new Error("A valid factor ID is required to unenroll.");
+  }
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.unenroll({ factorId });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Asserts that the current session satisfies AAL requirements.
+ * If MFA is enrolled (nextLevel === 'aal2') but not verified (currentLevel !== 'aal2'),
+ * throws an Error preventing access to private vault data.
+ */
+export async function assertAALRequirement() {
+  const aal = await getAssuranceLevel();
+  if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+    const err = new Error("MFA verification required (AAL2). Please complete your authenticator verification to access your encrypted vault.");
+    err.code = "mfa_required";
+    throw err;
+  }
+}
+
 /* ==================== Storage Operations ==================== */
 
 /**
@@ -143,6 +237,7 @@ export async function onAuthStateChange(callback) {
  *
  * Uses XMLHttpRequest for accurate byte-level progress reporting and cancellation.
  * Upsert is disabled to prevent accidental overwriting of existing encrypted documents.
+ * Requires AAL2 verification if the user account has MFA active.
  *
  * @param {Blob} encryptedBlob - Already-encrypted container Blob.
  * @param {object} meta - Metadata containing { docId }.
@@ -157,6 +252,8 @@ export async function uploadEncryptedDocument(encryptedBlob, meta, onProgress, o
   if (!meta || typeof meta.docId !== "string") {
     throw new Error("Valid document metadata is required.");
   }
+
+  await assertAALRequirement();
 
   const client = await getSupabase();
   let session = (await client.auth.getSession()).data.session;
@@ -233,6 +330,7 @@ export async function uploadEncryptedDocument(encryptedBlob, meta, onProgress, o
  * @returns {Promise<Array<{docId: string, name: string, size: number, updated: string}>>}
  */
 export async function listStoredDocuments() {
+  await assertAALRequirement();
   const client = await getSupabase();
   const session = (await client.auth.getSession()).data.session;
   if (!session) return [];
@@ -275,6 +373,8 @@ export async function downloadStoredDocument(docId) {
     throw new Error("Invalid document ID.");
   }
 
+  await assertAALRequirement();
+
   const client = await getSupabase();
   const session = (await client.auth.getSession()).data.session;
   if (!session) {
@@ -311,6 +411,8 @@ export async function deleteStoredDocument(docId) {
     throw new Error("Invalid document ID.");
   }
 
+  await assertAALRequirement();
+
   const client = await getSupabase();
   const session = (await client.auth.getSession()).data.session;
   if (!session) {
@@ -344,8 +446,14 @@ export function friendlySupabaseError(error) {
   if (msg.includes("Invalid login credentials")) {
     return "Incorrect email or password. Please try again.";
   }
-  if (msg.toLowerCase().includes("captcha")) {
-    return "Captcha verification required or failed. Please check the captcha box and try again.";
+  if (msg.includes("Invalid TOTP code") || msg.includes("invalid totp") || msg.includes("Invalid code") || msg.includes("invalid_code")) {
+    return "Invalid verification code. Please check your authenticator app and try again.";
+  }
+  if (msg.includes("factor") && (msg.includes("exceed") || msg.includes("maximum") || msg.includes("limit"))) {
+    return "Maximum number of enrolled factors reached. Unenroll an existing factor to add a new one.";
+  }
+  if (msg.includes("mfa_required") || msg.includes("MFA verification required")) {
+    return "Two-factor verification (AAL2) required. Please enter your authenticator code to access this feature.";
   }
   if (msg.includes("Email not confirmed")) {
     return "Please confirm your email address before signing in, or disable email confirmation in Supabase Auth settings.";

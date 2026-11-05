@@ -56,12 +56,13 @@ Please read these points before using this application:
    - Go to **Authentication** -> **Sign In / Up** -> **Anonymous Sign-ins**.
    - Toggle **Enable Anonymous Sign-ins** to **ON**.
 
-### 4. Configure Bot & Captcha Protection (hCaptcha)
-If Captcha protection is enabled in your Supabase dashboard (**Authentication** -> **Bot & Abuse Protection**):
-1. Select **hCaptcha** as the captcha provider.
-2. Enter your hCaptcha secret key into the Supabase dashboard.
-3. Copy your hCaptcha **Site Key** and paste it into [`supabase-config.js`](file:///d:/cybertitans/zk-kyc/supabase-config.js) under `hcaptchaSiteKey`.
-   *(During development or local testing, you can use the official hCaptcha test key: `10000000-ffff-ffff-ffff-000000000001`)*
+### 4. Configure Multi-Factor Authentication (MFA)
+1. Go to **Authentication** -> **Multi-Factor Authentication (MFA)** in your Supabase Dashboard:
+   - Ensure **Multi-Factor Authentication (MFA)** is toggled **ON**.
+   - Ensure **App Authenticator (TOTP)** is toggled **ON**.
+   - *(Optional)* Configure the maximum number of factors per user (default is 10).
+2. If CAPTCHA was previously enabled under **Authentication** -> **Bot & Abuse Protection**:
+   - Toggle **Enable Captcha protection** to **OFF** (as CAPTCHA has been removed from the client application).
 
 ### 5. Connect Your Credentials
 1. Go to **Project Settings** -> **API**.
@@ -72,7 +73,6 @@ If Captcha protection is enabled in your Supabase dashboard (**Authentication** 
      url: "https://your-project-id.supabase.co",
      anonKey: "YOUR_SUPABASE_ANON_KEY",
      bucketName: "encrypted-documents",
-     hcaptchaSiteKey: "YOUR_HCAPTCHA_SITE_KEY",
    };
    ```
 
@@ -109,3 +109,23 @@ If Captcha protection is enabled in your Supabase dashboard (**Authentication** 
 2. Select or retrieve your encrypted container from Supabase.
 3. Enter the correct passphrase: the file will decrypt in browser memory and prompt for download of the original file.
 4. Try modifying a single character or entering the wrong passphrase: the AES-256-GCM authentication tag check will immediately reject the decryption, ensuring zero corrupted or tampered output.
+
+### 3. Verify Multi-Factor Authentication (MFA / TOTP)
+1. **Enroll Authenticator**:
+   - Sign in to your account.
+   - Click the **🔒 MFA** button in the top navigation bar.
+   - Click **Enroll Authenticator App**.
+   - Scan the rendered QR code with Google Authenticator, 1Password, or Authy (or copy the manual secret key).
+   - Enter the 6-digit code from the authenticator app and click **Verify & Complete Enrollment**.
+   - Your account status will update to **Enabled (AAL2)**.
+2. **Verify Login Challenge**:
+   - Click **Sign Out** in the top navigation bar.
+   - Click **Sign In / Register** and enter your account email and password.
+   - You will immediately see the **Two-Factor Authentication** challenge prompting for your 6-digit authenticator code.
+   - Entering an invalid code displays a clear error and prevents access.
+   - Entering the correct 6-digit code elevates the session to AAL2 and unlocks the private vault.
+3. **Verify Route & Vault Protection (AAL2 Enforcement)**:
+   - If an account has MFA enrolled but is only at AAL1, access to the private vault, document downloads, and uploads is locked until 2FA challenge verification is completed.
+   - Refreshing the page automatically detects the intermediate AAL1 state and presents the TOTP verification challenge without allowing vault access.
+4. **Unenroll Factor**:
+   - In the **Security & MFA** modal, click **Unenroll** next to the enrolled factor and confirm the prompt to downgrade back to single-factor authentication.

@@ -33,6 +33,11 @@ import {
   signInAnonymously,
   signOut,
   onAuthStateChange,
+  getAssuranceLevel,
+  listMFAFactors,
+  enrollTOTPFactor,
+  challengeAndVerifyMFA,
+  unenrollMFAFactor,
 } from "./supabase-storage.js";
 import { isSupabaseConfigured } from "../supabase-config.js";
 
@@ -67,20 +72,55 @@ const els = {
   authOpenBtn: $("authOpenBtn"),
   authProfile: $("authProfile"),
   authEmailText: $("authEmailText"),
+  mfaSettingsOpenBtn: $("mfaSettingsOpenBtn"),
+  topbarMfaText: $("topbarMfaText"),
   authSignOutBtn: $("authSignOutBtn"),
 
-  // Auth Modal
+  // Auth Modal & Views
   authModal: $("authModal"),
   authCloseBtn: $("authCloseBtn"),
+  authModalTitle: $("authModalTitle"),
+  authModalSub: $("authModalSub"),
+  authStandardView: $("authStandardView"),
   tabSignIn: $("tabSignIn"),
   tabSignUp: $("tabSignUp"),
   authForm: $("authForm"),
   authEmailInput: $("authEmailInput"),
   authPasswordInput: $("authPasswordInput"),
-  authHcaptcha: $("authHcaptcha"),
   authErrorMessage: $("authErrorMessage"),
   authSubmitBtn: $("authSubmitBtn"),
   authAnonymousBtn: $("authAnonymousBtn"),
+
+  // Login TOTP Challenge Step
+  authTotpChallengeStep: $("authTotpChallengeStep"),
+  authTotpForm: $("authTotpForm"),
+  authTotpCodeInput: $("authTotpCodeInput"),
+  authTotpErrorMessage: $("authTotpErrorMessage"),
+  authTotpSubmitBtn: $("authTotpSubmitBtn"),
+  authTotpCancelBtn: $("authTotpCancelBtn"),
+
+  // MFA Settings Modal
+  mfaModal: $("mfaModal"),
+  mfaCloseBtn: $("mfaCloseBtn"),
+  mfaStatusBadge: $("mfaStatusBadge"),
+  mfaAalBadge: $("mfaAalBadge"),
+  mfaStatusDesc: $("mfaStatusDesc"),
+  mfaEnrolledSection: $("mfaEnrolledSection"),
+  mfaFactorsList: $("mfaFactorsList"),
+  mfaEnrollActionContainer: $("mfaEnrollActionContainer"),
+  mfaStartEnrollBtn: $("mfaStartEnrollBtn"),
+  mfaMaxFactorsNotice: $("mfaMaxFactorsNotice"),
+  mfaEnrollmentCard: $("mfaEnrollmentCard"),
+  mfaQrLoading: $("mfaQrLoading"),
+  mfaQrImage: $("mfaQrImage"),
+  mfaSecretText: $("mfaSecretText"),
+  mfaCopySecretBtn: $("mfaCopySecretBtn"),
+  mfaVerifyEnrollForm: $("mfaVerifyEnrollForm"),
+  mfaEnrollCodeInput: $("mfaEnrollCodeInput"),
+  mfaEnrollErrorMessage: $("mfaEnrollErrorMessage"),
+  mfaVerifyEnrollBtn: $("mfaVerifyEnrollBtn"),
+  mfaCancelEnrollBtn: $("mfaCancelEnrollBtn"),
+  mfaGeneralError: $("mfaGeneralError"),
 
   // Home CTA Buttons
   homeHeroEncryptBtn: $("homeHeroEncryptBtn"),
@@ -156,6 +196,8 @@ const els = {
 
   // Vault Section (Dedicated My Vault View)
   vaultViewRefreshBtn: $("vaultViewRefreshBtn"),
+  vaultMfaLockCard: $("vaultMfaLockCard"),
+  vaultVerifyMfaBtn: $("vaultVerifyMfaBtn"),
   vaultLoadingState: $("vaultLoadingState"),
   vaultErrorState: $("vaultErrorState"),
   vaultErrorMessage: $("vaultErrorMessage"),
@@ -285,66 +327,39 @@ function validateContainerFile(file) {
   return { ok: true };
 }
 
-/* ---------- Authentication UI Management ---------- */
+/* ---------- Authentication & MFA UI Management ---------- */
 
-function updateAuthUI(user) {
+async function updateAuthUI(user) {
   if (user) {
     els.authOpenBtn.classList.add("hidden");
     els.authProfile.classList.remove("hidden");
     const display = user.is_anonymous ? "Anonymous Session" : (user.email || "Signed In");
     els.authEmailText.textContent = display;
     els.authEmailText.title = user.id;
+
+    // Check MFA status
+    try {
+      const aal = await getAssuranceLevel();
+      if (aal && aal.nextLevel === "aal2") {
+        if (aal.currentLevel === "aal2") {
+          els.topbarMfaText.textContent = "MFA Active (AAL2)";
+          els.mfaSettingsOpenBtn.className = "btn btn-secondary btn-sm mfa-topbar-btn";
+        } else {
+          els.topbarMfaText.textContent = "MFA Pending (AAL1)";
+          els.mfaSettingsOpenBtn.className = "btn btn-warn btn-sm mfa-topbar-btn";
+        }
+      } else {
+        els.topbarMfaText.textContent = "MFA Off";
+        els.mfaSettingsOpenBtn.className = "btn btn-ghost btn-sm mfa-topbar-btn";
+      }
+    } catch {
+      els.topbarMfaText.textContent = "MFA";
+    }
   } else {
     els.authOpenBtn.classList.remove("hidden");
     els.authProfile.classList.add("hidden");
     els.authEmailText.textContent = "user";
-  }
-}
-
-let hcaptchaWidgetId = null;
-
-function renderHcaptchaIfNeeded() {
-  const container = els.authHcaptcha || document.getElementById("authHcaptcha");
-  if (!container) return;
-
-  const sitekey = supabaseConfig.hcaptchaSiteKey || "10000000-ffff-ffff-ffff-000000000001";
-  container.setAttribute("data-sitekey", sitekey);
-
-  if (typeof globalThis.hcaptcha !== "undefined" && typeof globalThis.hcaptcha.render === "function") {
-    if (!container.hasChildNodes()) {
-      try {
-        hcaptchaWidgetId = globalThis.hcaptcha.render(container, {
-          sitekey: sitekey,
-          theme: "light",
-        });
-      } catch { /* already rendered */ }
-    }
-  }
-}
-
-function getHcaptchaToken() {
-  if (typeof globalThis.hcaptcha !== "undefined") {
-    try {
-      if (hcaptchaWidgetId !== null && typeof globalThis.hcaptcha.getResponse === "function") {
-        return globalThis.hcaptcha.getResponse(hcaptchaWidgetId) || globalThis.hcaptcha.getResponse();
-      }
-      return globalThis.hcaptcha.getResponse();
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
-
-function resetHcaptcha() {
-  if (typeof globalThis.hcaptcha !== "undefined" && typeof globalThis.hcaptcha.reset === "function") {
-    try {
-      if (hcaptchaWidgetId !== null) {
-        globalThis.hcaptcha.reset(hcaptchaWidgetId);
-      } else {
-        globalThis.hcaptcha.reset();
-      }
-    } catch { /* ignore */ }
+    els.topbarMfaText.textContent = "MFA";
   }
 }
 
@@ -354,25 +369,153 @@ function setAuthMode(mode) {
   els.tabSignUp.classList.toggle("active", mode === "signup");
   els.authSubmitBtn.textContent = mode === "signin" ? "Sign In" : "Register Account";
   setFieldError(els.authErrorMessage, null);
-  resetHcaptcha();
+}
+
+function setAuthViewMode(view) {
+  if (view === "totp") {
+    els.authStandardView.classList.add("hidden");
+    els.authTotpChallengeStep.classList.remove("hidden");
+    els.authModalTitle.textContent = "Two-Factor Verification";
+    els.authModalSub.textContent = "Enter your authenticator app code to complete sign-in.";
+    els.authTotpCodeInput.value = "";
+    setFieldError(els.authTotpErrorMessage, null);
+    setTimeout(() => els.authTotpCodeInput.focus(), 50);
+  } else {
+    els.authStandardView.classList.remove("hidden");
+    els.authTotpChallengeStep.classList.add("hidden");
+    els.authModalTitle.textContent = "Cloud Vault Account Access";
+    els.authModalSub.textContent = "Sign in to synchronize and manage your client-side encrypted KYC documents in your private cloud vault.";
+    setAuthMode("signin");
+  }
 }
 
 function openAuthModal() {
-  setAuthMode("signin");
+  setAuthViewMode("standard");
   els.authEmailInput.value = "";
   els.authPasswordInput.value = "";
   setFieldError(els.authErrorMessage, null);
   els.authModal.classList.remove("hidden");
-  renderHcaptchaIfNeeded();
-  resetHcaptcha();
   els.authEmailInput.focus();
+}
+
+function openTotpChallengeModal() {
+  setAuthViewMode("totp");
+  els.authModal.classList.remove("hidden");
 }
 
 function closeAuthModal() {
   els.authModal.classList.add("hidden");
   els.authPasswordInput.value = "";
   setFieldError(els.authErrorMessage, null);
-  resetHcaptcha();
+  setFieldError(els.authTotpErrorMessage, null);
+  setAuthViewMode("standard");
+}
+
+/* ---------- MFA Settings Modal Logic ---------- */
+
+let pendingEnrollmentFactorId = null;
+
+function openMfaModal() {
+  setFieldError(els.mfaGeneralError, null);
+  setFieldError(els.mfaEnrollErrorMessage, null);
+  els.mfaEnrollmentCard.classList.add("hidden");
+  pendingEnrollmentFactorId = null;
+  els.mfaModal.classList.remove("hidden");
+  refreshMfaModal();
+}
+
+function closeMfaModal() {
+  els.mfaModal.classList.add("hidden");
+  els.mfaEnrollmentCard.classList.add("hidden");
+  pendingEnrollmentFactorId = null;
+}
+
+async function refreshMfaModal() {
+  els.mfaStatusDesc.textContent = "Loading MFA status...";
+  els.mfaStatusBadge.className = "mfa-pill mfa-pill-off";
+  els.mfaStatusBadge.textContent = "Loading...";
+  setFieldError(els.mfaGeneralError, null);
+
+  try {
+    const aal = await getAssuranceLevel();
+    const factors = await listMFAFactors();
+    const verifiedFactors = factors.all?.filter((f) => f.status === "verified") || [];
+
+    const isMfaActive = aal.nextLevel === "aal2" || verifiedFactors.length > 0;
+    if (isMfaActive) {
+      els.mfaStatusBadge.className = "mfa-pill mfa-pill-on";
+      els.mfaStatusBadge.textContent = "Enabled";
+      els.mfaStatusDesc.textContent = "Two-factor authentication is active on your account.";
+    } else {
+      els.mfaStatusBadge.className = "mfa-pill mfa-pill-off";
+      els.mfaStatusBadge.textContent = "Disabled";
+      els.mfaStatusDesc.textContent = "Require an additional verification factor (TOTP) when authenticating.";
+    }
+
+    const currentAal = aal.currentLevel ? aal.currentLevel.toUpperCase() : "AAL1";
+    els.mfaAalBadge.textContent = currentAal;
+    els.mfaAalBadge.className = currentAal === "AAL2" ? "mfa-pill mfa-pill-on" : "mfa-pill mfa-pill-info";
+
+    // Render verified factors list
+    if (verifiedFactors.length > 0) {
+      els.mfaEnrolledSection.classList.remove("hidden");
+      els.mfaFactorsList.textContent = "";
+
+      for (const factor of verifiedFactors) {
+        const item = document.createElement("div");
+        item.className = "mfa-factor-item";
+
+        const meta = document.createElement("div");
+        meta.className = "mfa-factor-meta";
+
+        const name = document.createElement("div");
+        name.className = "mfa-factor-name";
+        name.textContent = factor.friendly_name || "Authenticator App (TOTP)";
+
+        const sub = document.createElement("div");
+        sub.className = "mfa-factor-sub";
+        const enrolledDate = factor.created_at ? new Date(factor.created_at).toLocaleDateString() : "Active";
+        sub.textContent = `Enrolled: ${enrolledDate} • Factor ID: ${factor.id.slice(0, 8)}...`;
+
+        meta.appendChild(name);
+        meta.appendChild(sub);
+
+        const unenrollBtn = document.createElement("button");
+        unenrollBtn.type = "button";
+        unenrollBtn.className = "btn btn-danger btn-sm";
+        unenrollBtn.textContent = "Unenroll";
+        unenrollBtn.addEventListener("click", async () => {
+          const confirmed = window.confirm(
+            "Are you sure you want to unenroll this authenticator factor?\n\nIf you remove all factors, your account will downgrade to single-factor authentication (AAL1)."
+          );
+          if (!confirmed) return;
+
+          unenrollBtn.disabled = true;
+          unenrollBtn.textContent = "Removing...";
+          try {
+            await unenrollMFAFactor(factor.id);
+            showToast("Authenticator factor successfully unenrolled.", "info", 3000);
+            await refreshMfaModal();
+            const user = await getCurrentUser();
+            updateAuthUI(user);
+          } catch (err) {
+            setFieldError(els.mfaGeneralError, `Failed to unenroll factor: ${friendlySupabaseError(err)}`);
+            unenrollBtn.disabled = false;
+            unenrollBtn.textContent = "Unenroll";
+          }
+        });
+
+        item.appendChild(meta);
+        item.appendChild(unenrollBtn);
+        els.mfaFactorsList.appendChild(item);
+      }
+    } else {
+      els.mfaEnrolledSection.classList.add("hidden");
+      els.mfaFactorsList.textContent = "";
+    }
+  } catch (err) {
+    setFieldError(els.mfaGeneralError, friendlySupabaseError(err));
+  }
 }
 
 /* ---------- Automatic Form Clearing & Tab Switching ---------- */
@@ -902,6 +1045,7 @@ async function loadVaultMain() {
   els.vaultErrorState.classList.add("hidden");
   els.vaultEmptyStateMain.classList.add("hidden");
   els.vaultFilesContainer.classList.add("hidden");
+  els.vaultMfaLockCard.classList.add("hidden");
 
   try {
     const docs = await listStoredDocuments();
@@ -1038,8 +1182,15 @@ async function loadVaultMain() {
     }
   } catch (err) {
     els.vaultLoadingState.classList.add("hidden");
-    els.vaultErrorState.classList.remove("hidden");
-    els.vaultErrorMessage.textContent = `Could not load vault: ${friendlySupabaseError(err)}`;
+    if (err.code === "mfa_required" || (err.message && err.message.includes("MFA verification required"))) {
+      els.vaultMfaLockCard.classList.remove("hidden");
+      els.vaultErrorState.classList.add("hidden");
+      els.vaultEmptyStateMain.classList.add("hidden");
+      els.vaultFilesContainer.classList.add("hidden");
+    } else {
+      els.vaultErrorState.classList.remove("hidden");
+      els.vaultErrorMessage.textContent = `Could not load vault: ${friendlySupabaseError(err)}`;
+    }
   }
 }
 
@@ -1138,8 +1289,12 @@ async function renderSidebarVault() {
 
       els.vaultListContainer.appendChild(card);
     }
-  } catch {
-    els.vaultEmptyState.textContent = "Could not load vault documents.";
+  } catch (err) {
+    if (err.code === "mfa_required" || (err.message && err.message.includes("MFA verification required"))) {
+      els.vaultEmptyState.textContent = "MFA verification (AAL2) required. Click Security/MFA in top bar to unlock.";
+    } else {
+      els.vaultEmptyState.textContent = "Could not load vault documents.";
+    }
   }
 }
 
@@ -1305,34 +1460,85 @@ els.authForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  const captchaToken = getHcaptchaToken();
-  if (typeof globalThis.hcaptcha !== "undefined" && !captchaToken) {
-    setFieldError(els.authErrorMessage, "Please complete the captcha verification.");
-    return;
-  }
-
   setFieldError(els.authErrorMessage, null);
   els.authSubmitBtn.disabled = true;
 
   try {
     if (authMode === "signin") {
-      await signInWithEmail(email, password, captchaToken);
+      await signInWithEmail(email, password);
+      // Check if user has enrolled MFA and needs TOTP challenge
+      const aal = await getAssuranceLevel();
+      if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+        setAuthViewMode("totp");
+        showToast("Password verified. Please enter your authenticator code.", "info", 3500);
+        return;
+      }
       showToast("Signed in successfully.", "success", 3000);
     } else {
-      await signUpWithEmail(email, password, captchaToken);
+      await signUpWithEmail(email, password);
       showToast("Account created. Check your email if confirmation is required.", "success", 4000);
     }
     closeAuthModal();
     const user = await getCurrentUser();
-    updateAuthUI(user);
+    await updateAuthUI(user);
     if (currentView === "vault") loadVaultMain();
     renderSidebarVault();
   } catch (err) {
-    resetHcaptcha();
     setFieldError(els.authErrorMessage, friendlySupabaseError(err));
   } finally {
     els.authSubmitBtn.disabled = false;
   }
+});
+
+// Login TOTP Challenge Verification
+els.authTotpForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = els.authTotpCodeInput.value.trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    setFieldError(els.authTotpErrorMessage, "Please enter a valid 6-digit code.");
+    return;
+  }
+
+  setFieldError(els.authTotpErrorMessage, null);
+  els.authTotpSubmitBtn.disabled = true;
+
+  try {
+    const factors = await listMFAFactors();
+    const totpFactor =
+      factors.totp?.[0] ||
+      factors.all?.find((f) => f.factor_type === "totp" && f.status === "verified");
+
+    if (!totpFactor) {
+      throw new Error("No verified authenticator factor found for this account.");
+    }
+
+    await challengeAndVerifyMFA(totpFactor.id, code);
+    closeAuthModal();
+    showToast("Two-factor authentication verified! Access granted.", "success", 3500);
+
+    const user = await getCurrentUser();
+    await updateAuthUI(user);
+    if (currentView === "vault") loadVaultMain();
+    renderSidebarVault();
+  } catch (err) {
+    setFieldError(els.authTotpErrorMessage, friendlySupabaseError(err));
+    els.authTotpCodeInput.value = "";
+    els.authTotpCodeInput.focus();
+  } finally {
+    els.authTotpSubmitBtn.disabled = false;
+  }
+});
+
+els.authTotpCancelBtn.addEventListener("click", async () => {
+  try {
+    await signOut();
+  } catch { /* ignore */ }
+  closeAuthModal();
+  await updateAuthUI(null);
+  showToast("Sign-in cancelled.", "info", 2000);
+  if (currentView === "vault") loadVaultMain();
+  renderSidebarVault();
 });
 
 els.authAnonymousBtn.addEventListener("click", async () => {
@@ -1343,7 +1549,7 @@ els.authAnonymousBtn.addEventListener("click", async () => {
     showToast("Signed in with anonymous session.", "success", 3000);
     closeAuthModal();
     const user = await getCurrentUser();
-    updateAuthUI(user);
+    await updateAuthUI(user);
     if (currentView === "vault") loadVaultMain();
     renderSidebarVault();
   } catch (err) {
@@ -1356,7 +1562,7 @@ els.authAnonymousBtn.addEventListener("click", async () => {
 els.authSignOutBtn.addEventListener("click", async () => {
   try {
     await signOut();
-    updateAuthUI(null);
+    await updateAuthUI(null);
     showToast("Signed out successfully.", "info", 3000);
     if (currentView === "vault") loadVaultMain();
     renderSidebarVault();
@@ -1365,10 +1571,121 @@ els.authSignOutBtn.addEventListener("click", async () => {
   }
 });
 
+// MFA Settings Listeners
+els.mfaSettingsOpenBtn.addEventListener("click", openMfaModal);
+els.mfaCloseBtn.addEventListener("click", closeMfaModal);
+els.mfaModal.addEventListener("click", (e) => {
+  if (e.target === els.mfaModal) closeMfaModal();
+});
+
+els.vaultVerifyMfaBtn.addEventListener("click", () => {
+  openTotpChallengeModal();
+});
+
+els.mfaStartEnrollBtn.addEventListener("click", async () => {
+  setFieldError(els.mfaGeneralError, null);
+  setFieldError(els.mfaEnrollErrorMessage, null);
+  els.mfaStartEnrollBtn.disabled = true;
+  els.mfaEnrollmentCard.classList.remove("hidden");
+  els.mfaQrLoading.classList.remove("hidden");
+  els.mfaQrImage.classList.add("hidden");
+  els.mfaSecretText.textContent = "Generating...";
+  els.mfaEnrollCodeInput.value = "";
+
+  try {
+    const factor = await enrollTOTPFactor("ZeroKnowledgeKYC");
+    pendingEnrollmentFactorId = factor.id;
+
+    if (factor.totp) {
+      els.mfaSecretText.textContent = factor.totp.secret || "";
+      if (factor.totp.qr_code) {
+        els.mfaQrImage.src = factor.totp.qr_code;
+        els.mfaQrLoading.classList.add("hidden");
+        els.mfaQrImage.classList.remove("hidden");
+      }
+    }
+    els.mfaEnrollCodeInput.focus();
+  } catch (err) {
+    setFieldError(els.mfaGeneralError, friendlySupabaseError(err));
+    els.mfaEnrollmentCard.classList.add("hidden");
+    pendingEnrollmentFactorId = null;
+  } finally {
+    els.mfaStartEnrollBtn.disabled = false;
+  }
+});
+
+els.mfaCopySecretBtn.addEventListener("click", async () => {
+  const secret = els.mfaSecretText.textContent;
+  if (!secret || secret === "Generating...") return;
+  try {
+    await navigator.clipboard.writeText(secret);
+    const orig = els.mfaCopySecretBtn.textContent;
+    els.mfaCopySecretBtn.textContent = "Copied!";
+    setTimeout(() => {
+      els.mfaCopySecretBtn.textContent = orig;
+    }, 2000);
+    showToast("Setup secret copied to clipboard.", "info", 2000);
+  } catch {
+    showToast("Failed to copy secret.", "error", 2000);
+  }
+});
+
+els.mfaCancelEnrollBtn.addEventListener("click", () => {
+  els.mfaEnrollmentCard.classList.add("hidden");
+  pendingEnrollmentFactorId = null;
+  setFieldError(els.mfaEnrollErrorMessage, null);
+});
+
+els.mfaVerifyEnrollForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const code = els.mfaEnrollCodeInput.value.trim();
+
+  if (!/^\d{6}$/.test(code)) {
+    setFieldError(els.mfaEnrollErrorMessage, "Please enter a valid 6-digit verification code.");
+    return;
+  }
+
+  if (!pendingEnrollmentFactorId) {
+    setFieldError(els.mfaEnrollErrorMessage, "Enrollment session expired. Please click 'Enroll Authenticator App' again.");
+    return;
+  }
+
+  setFieldError(els.mfaEnrollErrorMessage, null);
+  els.mfaVerifyEnrollBtn.disabled = true;
+
+  try {
+    await challengeAndVerifyMFA(pendingEnrollmentFactorId, code);
+    showToast("Authenticator app verified successfully! MFA is now active.", "success", 4000);
+    els.mfaEnrollmentCard.classList.add("hidden");
+    pendingEnrollmentFactorId = null;
+
+    await refreshMfaModal();
+    const user = await getCurrentUser();
+    await updateAuthUI(user);
+    if (currentView === "vault") loadVaultMain();
+    renderSidebarVault();
+  } catch (err) {
+    setFieldError(els.mfaEnrollErrorMessage, friendlySupabaseError(err));
+    els.mfaEnrollCodeInput.focus();
+  } finally {
+    els.mfaVerifyEnrollBtn.disabled = false;
+  }
+});
+
 // Subscribe to auth state changes
 if (isSupabaseConfigured()) {
-  onAuthStateChange((_event, session) => {
-    updateAuthUI(session?.user || null);
+  onAuthStateChange(async (_event, session) => {
+    const user = session?.user || null;
+    await updateAuthUI(user);
+    if (user) {
+      try {
+        const aal = await getAssuranceLevel();
+        if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+          if (currentView === "vault") loadVaultMain();
+          return;
+        }
+      } catch { /* ignore */ }
+    }
     if (currentView === "vault") loadVaultMain();
     renderSidebarVault();
   });
@@ -1391,13 +1708,20 @@ if (["home", "encrypt", "decrypt", "vault"].includes(initHash)) {
 }
 
 updateEncryptMeter();
-window.addEventListener("load", renderHcaptchaIfNeeded);
 
 if (isSupabaseConfigured()) {
   getCurrentUser()
-    .then((user) => {
-      updateAuthUI(user);
-      renderSidebarVault();
+    .then(async (user) => {
+      await updateAuthUI(user);
+      if (user) {
+        const aal = await getAssuranceLevel();
+        if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+          // Intermediate AAL1 state: prompt user to complete 2FA challenge
+          openTotpChallengeModal();
+        } else {
+          renderSidebarVault();
+        }
+      }
     })
     .catch(() => {});
 }
