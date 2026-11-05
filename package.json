@@ -1,0 +1,16 @@
+{
+  "name": "zk-kyc",
+  "version": "1.0.0",
+  "description": "",
+  "main": "supabase-config.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.119.0"
+  }
+}

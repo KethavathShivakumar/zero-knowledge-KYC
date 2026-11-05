@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self' https://api.pwnedpasswords.com https://*.supabase.co wss://*.supabase.co https://*.supabase.in;" />
+  <meta name="referrer" content="no-referrer" />
+  <title>ZERO-KNOWLEDGE KYC — Client-Side Document Encryption</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand" role="banner">
+        <svg class="brand-logo" viewBox="0 0 48 48" aria-hidden="true" width="40" height="40">
+          <defs>
+            <linearGradient id="shieldGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#2563eb" />
+              <stop offset="100%" stop-color="#7c3aed" />
+            </linearGradient>
+          </defs>
+          <path d="M24 4 L6 11 V23 C6 33.5 13.8 42.1 24 44.5 C34.2 42.1 42 33.5 42 23 V11 Z" fill="url(#shieldGrad)" />
+          <rect x="17" y="22" width="14" height="11" rx="2.5" fill="#ffffff" />
+          <path d="M20 22 V18 A4 4 0 0 1 28 18 V22" fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linecap="round" />
+          <circle cx="24" cy="27" r="1.6" fill="#2563eb" />
+        </svg>
+        <div class="brand-text">
+          <span class="brand-name">ZERO-KNOWLEDGE KYC</span>
+          <span class="brand-tagline">Your Documents. Your Keys. Your Privacy.</span>
+        </div>
+      </div>
+
+      <nav class="nav-links" aria-label="Main Navigation">
+        <button type="button" class="nav-btn active" data-nav="home">Home</button>
+        <button type="button" class="nav-btn" data-nav="encrypt">Encrypt</button>
+        <button type="button" class="nav-btn" data-nav="decrypt">Decrypt</button>
+        <button type="button" class="nav-btn" data-nav="vault">My Vault</button>
+      </nav>
+
+      <div class="topbar-status">
+        <span class="status-indicator" id="globalStatusBadge">
+          <span class="status-dot"></span>
+          <span id="globalStatusText">Client-Side Secure</span>
+        </span>
+      </div>
+
+      <div class="topbar-auth">
+        <button type="button" id="authOpenBtn" class="btn btn-secondary btn-sm">Sign In / Register</button>
+        <div id="authProfile" class="auth-profile hidden">
+          <span class="auth-user-badge">👤 <span id="authEmailText">user</span></span>
+          <button type="button" id="authSignOutBtn" class="btn btn-ghost btn-sm">Sign Out</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="main-content">
+
+    <!-- ==================== 1. HOME VIEW ==================== -->
+    <section id="viewHome" class="view" aria-labelledby="homeHeading">
+      <!-- Hero -->
+      <div class="hero-card">
+        <div class="hero-badge">Client-Side Document Encryption</div>
+        <h1 id="homeHeading" class="hero-title">Secure Your Identity with Zero-Knowledge Encryption</h1>
+        <p class="hero-desc">
+          Protect your sensitive KYC documents using client-side encryption. Your documents are encrypted
+          directly in your browser before reaching cloud storage. Your encryption keys remain under your control.
+        </p>
+
+        <div class="hero-actions">
+          <button type="button" class="btn btn-primary btn-lg" id="homeHeroEncryptBtn">Start Encryption</button>
+          <button type="button" class="btn btn-secondary btn-lg" id="homeHeroDecryptBtn">Start Decryption</button>
+        </div>
+      </div>
+
+      <!-- Security Information Cards -->
+      <div class="section-title-wrap">
+        <h2>Under The Hood: Cryptographic Guarantees</h2>
+        <p class="section-sub">Zero-knowledge means the server never holds the keys or the unencrypted data.</p>
+      </div>
+
+      <div class="info-cards-grid">
+        <!-- Card 1: Industry-Standard Encryption -->
+        <article class="info-card">
+          <div class="info-card-header">
+            <span class="info-icon info-icon-blue" aria-hidden="true">🛡️</span>
+            <h3>Industry-Standard Encryption</h3>
+          </div>
+          <p class="info-card-body">
+            Authenticated symmetric encryption protects your KYC documents against unauthorized viewing (confidentiality),
+            while a 128-bit authentication tag mathematically guarantees the document cannot be tampered with or modified (integrity).
+          </p>
+          <div class="info-tag">256-bit Key • Additional Security Verification</div>
+        </article>
+
+        <!-- Card 2: Secure Key Generation -->
+        <article class="info-card">
+          <div class="info-card-header">
+            <span class="info-icon info-icon-purple" aria-hidden="true">🔑</span>
+            <h3>Secure Key Generation</h3>
+          </div>
+          <p class="info-card-body">
+            Derives a non-extractable 256-bit encryption key from your passphrase using a fresh cryptographic
+            16-byte random salt and 600,000 iterations to protect against automated brute-force attacks.
+          </p>
+          <div class="info-tag">600,000 Iterations • In-Memory Only</div>
+        </article>
+
+        <!-- Card 3: PRIVATE CLOUD VAULT -->
+        <article class="info-card">
+          <div class="info-card-header">
+            <span class="info-icon info-icon-emerald" aria-hidden="true">☁️</span>
+            <h3>Private Cloud Vault</h3>
+          </div>
+          <p class="info-card-body">
+            Your private cloud vault stores only the encrypted document (.zkkyc) and required parameters (salt, IV).
+            The server never receives your plaintext KYC document, your passphrase, your encryption key, or your original
+            filename.
+          </p>
+          <div class="info-tag">Client-Side Only • Isolated Cloud Path</div>
+        </article>
+
+        <!-- Card 4: PASSWORD BREACH CHECK -->
+        <article class="info-card">
+          <div class="info-card-header">
+            <span class="info-icon info-icon-amber" aria-hidden="true">🔍</span>
+            <h3>Password Breach Check</h3>
+          </div>
+          <p class="info-card-body">
+            Checks whether your passphrase appears in known breach databases using a privacy-preserving model.
+            Only a partial hash prefix is transmitted; note that passing this check does not guarantee a passphrase is strong or cannot be guessed.
+          </p>
+          <div class="info-tag">Privacy Model • Never Sends Passphrase</div>
+        </article>
+      </div>
+
+      <!-- Visual Workflow -->
+      <div class="workflow-card">
+        <h3 class="workflow-title">Zero-Knowledge Processing Flow</h3>
+        <div class="workflow-steps">
+          <div class="flow-step">
+            <div class="flow-step-num">1</div>
+            <div class="flow-step-icon">📄</div>
+            <div class="flow-step-name">Select Document</div>
+            <div class="flow-step-sub">Local PDF, JPG, PNG</div>
+          </div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step">
+            <div class="flow-step-num">2</div>
+            <div class="flow-step-icon">⚙️</div>
+            <div class="flow-step-name">Generate Key</div>
+            <div class="flow-step-sub">Secure Key Generation</div>
+          </div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step">
+            <div class="flow-step-num">3</div>
+            <div class="flow-step-icon">🔒</div>
+            <div class="flow-step-name">Encrypt File</div>
+            <div class="flow-step-sub">Industry-Standard Encryption</div>
+          </div>
+          <div class="flow-arrow" aria-hidden="true">→</div>
+          <div class="flow-step">
+            <div class="flow-step-num">4</div>
+            <div class="flow-step-icon">☁️</div>
+            <div class="flow-step-name">Secure Cloud Storage</div>
+            <div class="flow-step-sub">Encrypted Document Only</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Interactive Cards -->
+      <div class="interactive-cards-grid">
+        <div class="action-card action-card-encrypt">
+          <div class="action-card-badge">Protect</div>
+          <h3>Encrypt Document</h3>
+          <p>Protect your sensitive files with client-side industry-standard encryption before storing or sharing.</p>
+          <button type="button" class="btn btn-primary" id="homeStartEncryptBtn">Start Encryption</button>
+        </div>
+
+        <div class="action-card action-card-decrypt">
+          <div class="action-card-badge">Restore</div>
+          <h3>Decrypt Document</h3>
+          <p>Safely restore your encrypted .zkkyc containers locally in your browser using your secret passphrase.</p>
+          <button type="button" class="btn btn-secondary" id="homeStartDecryptBtn">Start Decryption</button>
+        </div>
+      </div>
+
+      <!-- Security Limitations -->
+      <div class="card security-limitations-card">
+        <h3>⚠ Security Limitations</h3>
+        <p>Please read these points before using this application with real documents.</p>
+        <ul class="limitations-list">
+          <li>This application has <strong>not undergone an independent security audit</strong>. Use at your own risk.</li>
+          <li>You are solely responsible for protecting your passphrase. <strong>Lost passphrases cannot be recovered</strong>, and encrypted documents will become permanently inaccessible.</li>
+          <li>Weak or short passphrases may be vulnerable to guessing or brute-force attacks, even if they pass the breach database check.</li>
+          <li>Security also depends on your device, browser, and operating system. Keep them updated.</li>
+          <li>Cloud storage contains encrypted documents only, but metadata such as file sizes and upload timestamps may still be visible.</li>
+          <li>We recommend testing with non-sensitive dummy documents until the application has been independently reviewed.</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ==================== 2. ENCRYPT VIEW ==================== -->
+    <section id="viewEncrypt" class="view hidden" aria-labelledby="encryptHeading">
+      <div class="view-header">
+        <h1 id="encryptHeading">Encrypt KYC Document</h1>
+        <p class="view-sub">All processing happens locally in your browser. Plaintext documents never leave your device.</p>
+      </div>
+
+      <div class="workspace-grid">
+        <!-- Main Form Column -->
+        <div class="workspace-main">
+
+          <!-- Step A: File Upload -->
+          <div class="card form-section">
+            <div class="section-badge-header">
+              <span class="step-badge">1</span>
+              <div>
+                <h2>Select KYC Document</h2>
+                <p class="section-lead">Supported formats: PDF, JPG, PNG, WebP (Maximum size: 10 MB).</p>
+              </div>
+            </div>
+
+            <!-- Drag & Drop Zone -->
+            <label id="encryptDropzone" class="dropzone" for="encryptFileInput" tabindex="0">
+              <svg viewBox="0 0 24 24" class="dropzone-icon" aria-hidden="true" width="40" height="40">
+                <path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <div class="dropzone-text">
+                <span class="dropzone-primary"><strong>Choose a document</strong> or drag and drop here</span>
+                <span class="dropzone-hint">PDF, JPG, PNG, or WebP up to 10 MB</span>
+              </div>
+              <input id="encryptFileInput" type="file"
+                     accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" hidden />
+            </label>
+
+            <!-- Inline File Error -->
+            <div id="encryptFileError" class="field-error hidden" role="alert"></div>
+
+            <!-- Selected File Info Card -->
+            <div id="encryptFileInfo" class="file-card hidden">
+              <div class="file-card-meta">
+                <span class="file-card-icon" aria-hidden="true">📄</span>
+                <div class="file-card-text">
+                  <div id="encryptFileName" class="file-card-name"></div>
+                  <div class="file-card-details">
+                    <span id="encryptFileSize" class="file-detail-pill"></span>
+                    <span id="encryptFileType" class="file-detail-pill"></span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" id="encryptClearFileBtn" class="btn btn-ghost btn-sm">Remove</button>
+            </div>
+          </div>
+
+          <!-- Step B: Passphrase Input -->
+          <div class="card form-section">
+            <div class="section-badge-header">
+              <span class="step-badge">2</span>
+              <div>
+                <h2>Secret Passphrase</h2>
+                <p class="section-lead">Your passphrase derives the non-extractable encryption key. Never stored or sent anywhere.</p>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="encryptPassphrase" class="field-label">Encryption Passphrase</label>
+              <div class="input-row">
+                <input id="encryptPassphrase" type="password" autocomplete="off" spellcheck="false"
+                       placeholder="Enter a strong, unique passphrase (at least 12 characters)" />
+                <button type="button" id="toggleEncryptPass" class="btn btn-ghost" aria-label="Show passphrase">Show</button>
+              </div>
+
+              <!-- Strength meter -->
+              <div class="meter-wrapper" aria-hidden="true">
+                <div id="encryptMeterBar" class="meter-bar"></div>
+              </div>
+
+              <!-- Inline validation messages -->
+              <div id="encryptPassError" class="field-error hidden" role="alert"></div>
+              <div id="encryptBreachNotice" class="field-notice hidden" role="status"></div>
+              <div class="field-hint">
+                Use at least 12 characters. Common dictionary passwords and short numeric PINs are easily cracked.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step D: Encrypt Action Button -->
+          <div class="card action-box">
+            <button type="button" id="doEncryptBtn" class="btn btn-primary btn-block btn-lg">
+              Encrypt Document
+            </button>
+
+            <!-- Encryption Progress State -->
+            <div id="encryptProgress" class="action-progress hidden" role="status">
+              <div class="spinner" aria-hidden="true"></div>
+              <span id="encryptProgressText">Deriving key and encrypting...</span>
+            </div>
+
+            <!-- Inline Action Error -->
+            <div id="encryptActionError" class="field-error hidden" role="alert"></div>
+          </div>
+
+          <!-- Step E: After Encryption Result -->
+          <div id="encryptionSuccessCard" class="card result-card hidden" role="region" aria-label="Encryption Results">
+            <div class="result-header">
+              <span class="result-icon-success">✓</span>
+              <div>
+                <h3>Document Encrypted Successfully</h3>
+                <p class="result-sub">Encrypted document generated with additional security verification.</p>
+              </div>
+            </div>
+
+            <div class="result-details-grid">
+              <div class="result-detail">
+                <span class="detail-label">Container Name</span>
+                <span id="encResultName" class="detail-value mono"></span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">Protection</span>
+                <span class="detail-value">Industry-Standard Encryption</span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">Status</span>
+                <span class="detail-value status-tag-green">Encrypted & Authenticated</span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">Encrypted Size</span>
+                <span id="encResultSize" class="detail-value"></span>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" id="downloadEncryptedBtn" class="btn btn-primary">
+                Download Encrypted File (.zkkyc)
+              </button>
+              <button type="button" id="uploadSupabaseBtn" class="btn btn-secondary">
+                Upload to Private Cloud Vault
+              </button>
+            </div>
+
+            <!-- Upload progress bar container -->
+            <div id="uploadProgressContainer" class="upload-progress-box hidden" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <div class="progress-labels">
+                <span id="uploadProgressLabel" class="progress-label">Preparing...</span>
+                <span id="uploadProgressPercent" class="progress-percent">0%</span>
+              </div>
+              <div class="progress-bar-bg">
+                <div id="uploadProgressBar" class="progress-bar-fill"></div>
+              </div>
+              <div class="progress-actions">
+                <span id="uploadStatusMessage" class="upload-status-text">Status: Preparing</span>
+                <button type="button" id="cancelUploadBtn" class="btn btn-ghost btn-sm">Cancel Upload</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sidebar / Security Checklist Column -->
+        <aside class="workspace-sidebar">
+          <div class="card security-sidebar-card">
+            <h3>How Client-Side Encryption Works</h3>
+            <ul class="security-list">
+              <li>
+                <span class="sec-icon">🔑</span>
+                <div>
+                  <strong>Secure Key Generation</strong>
+                  <p>Derived using 600,000 iterations and a per-document 16-byte random salt.</p>
+                </div>
+              </li>
+              <li>
+                <span class="sec-icon">🛡️</span>
+                <div>
+                  <strong>Industry-Standard Encryption</strong>
+                  <p>Protects file payload and metadata with a fresh 12-byte random IV and verification tag.</p>
+                </div>
+              </li>
+              <li>
+                <span class="sec-icon">💻</span>
+                <div>
+                  <strong>Browser Memory Only</strong>
+                  <p>Keys are created non-extractable in Web Crypto. They can never be inspected by scripts.</p>
+                </div>
+              </li>
+              <li>
+                <span class="sec-icon">🚫</span>
+                <div>
+                  <strong>Zero-Knowledge Guarantee</strong>
+                  <p>Neither your plaintext file, passphrase, nor key are ever transmitted over the network.</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+
+          <div class="card checklist-card">
+            <h3>Pre-Encryption Checklist</h3>
+            <ul class="checklist" id="encryptChecklist">
+              <li id="chkEncryptFile" class="chk-item">A valid document is selected</li>
+              <li id="chkEncryptPass" class="chk-item">Passphrase has 12+ characters</li>
+              <li id="chkEncryptBreach" class="chk-item">Passphrase checked for breaches</li>
+            </ul>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ==================== 3. DECRYPT VIEW ==================== -->
+    <section id="viewDecrypt" class="view hidden" aria-labelledby="decryptHeading">
+      <div class="view-header">
+        <h1 id="decryptHeading">Decrypt KYC Document</h1>
+        <p class="view-sub">Restore your original document locally from an encrypted .zkkyc file. No server decryption.</p>
+      </div>
+
+      <div class="workspace-grid">
+        <!-- Main Form Column -->
+        <div class="workspace-main">
+
+          <!-- Step A: Encrypted File Upload -->
+          <div class="card form-section">
+            <div class="section-badge-header">
+              <span class="step-badge">1</span>
+              <div>
+                <h2>Select Encrypted Container</h2>
+                <p class="section-lead">Load an encrypted .zkkyc container file from your disk or cloud vault.</p>
+              </div>
+            </div>
+
+            <!-- Drag & Drop Zone for .zkkyc -->
+            <label id="decryptDropzone" class="dropzone" for="decryptFileInput" tabindex="0">
+              <svg viewBox="0 0 24 24" class="dropzone-icon" aria-hidden="true" width="40" height="40">
+                <path d="M12 16V4m0 0L7 9m5-5 5 5M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"
+                      fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+              <div class="dropzone-text">
+                <span class="dropzone-primary"><strong>Choose an encrypted file (.enc or .zkkyc)</strong> or drag it here</span>
+                <span class="dropzone-hint">Accepts authentic .enc and .zkkyc containers only</span>
+              </div>
+              <input id="decryptFileInput" type="file" accept=".enc,.zkkyc" hidden />
+            </label>
+
+            <!-- Inline File Error -->
+            <div id="decryptFileError" class="field-error hidden" role="alert"></div>
+
+            <!-- Selected Encrypted File Info Card -->
+            <div id="decryptFileInfo" class="file-card hidden">
+              <div class="file-card-meta">
+                <span class="file-card-icon" aria-hidden="true">🔒</span>
+                <div class="file-card-text">
+                  <div id="decryptFileName" class="file-card-name"></div>
+                  <div class="file-card-details">
+                    <span id="decryptFileSize" class="file-detail-pill"></span>
+                    <span class="file-detail-pill">Encrypted .zkkyc</span>
+                  </div>
+                </div>
+              </div>
+              <button type="button" id="decryptClearFileBtn" class="btn btn-ghost btn-sm">Remove</button>
+            </div>
+          </div>
+
+          <!-- Step B: Passphrase Input -->
+          <div class="card form-section">
+            <div class="section-badge-header">
+              <span class="step-badge">2</span>
+              <div>
+                <h2>Enter Secret Passphrase</h2>
+                <p class="section-lead">Enter the exact same passphrase used when this document was encrypted.</p>
+              </div>
+            </div>
+
+            <div class="input-group">
+              <label for="decryptPassphrase" class="field-label">Decryption Passphrase</label>
+              <div class="input-row">
+                <input id="decryptPassphrase" type="password" autocomplete="off" spellcheck="false"
+                       placeholder="Enter the passphrase used during encryption" />
+                <button type="button" id="toggleDecryptPass" class="btn btn-ghost" aria-label="Show passphrase">Show</button>
+              </div>
+
+              <!-- Inline validation error -->
+              <div id="decryptPassError" class="field-error hidden" role="alert"></div>
+              <div class="field-hint">Enter the same passphrase used during encryption.</div>
+            </div>
+          </div>
+
+          <!-- Step C: Decrypt Action Button -->
+          <div class="card action-box">
+            <button type="button" id="doDecryptBtn" class="btn btn-primary btn-block btn-lg">
+              Decrypt Document
+            </button>
+
+            <!-- Decryption Progress State -->
+            <div id="decryptProgress" class="action-progress hidden" role="status">
+              <div class="spinner" aria-hidden="true"></div>
+              <span id="decryptProgressText">Verifying authentication tag and decrypting...</span>
+            </div>
+
+            <!-- Inline Action Error -->
+            <div id="decryptActionError" class="field-error hidden" role="alert"></div>
+          </div>
+
+          <!-- Step D: After Decryption Result -->
+          <div id="decryptionSuccessCard" class="card result-card hidden" role="region" aria-label="Decryption Results">
+            <div class="result-header">
+              <span class="result-icon-success">✓</span>
+              <div>
+                <h3>Decryption Successful</h3>
+                <p class="result-sub">Encrypted document verified. Plaintext restored locally.</p>
+              </div>
+            </div>
+
+            <div class="result-details-grid">
+              <div class="result-detail">
+                <span class="detail-label">Original Filename</span>
+                <span id="decResultName" class="detail-value"></span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">File Type</span>
+                <span id="decResultType" class="detail-value"></span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">Original Size</span>
+                <span id="decResultSize" class="detail-value"></span>
+              </div>
+              <div class="result-detail">
+                <span class="detail-label">Storage Integrity</span>
+                <span class="detail-value status-tag-green">100% Authentic</span>
+              </div>
+            </div>
+
+            <div class="result-actions">
+              <button type="button" id="downloadOriginalBtn" class="btn btn-primary">
+                Download Original File
+              </button>
+              <button type="button" id="clearDecryptedBtn" class="btn btn-ghost">
+                Clear from Memory
+              </button>
+            </div>
+            <p class="disclaimer-text">
+              The decrypted document exists solely in browser memory and is never uploaded anywhere.
+            </p>
+          </div>
+        </div>
+
+        <!-- Sidebar / Cloud Vault Column -->
+        <aside class="workspace-sidebar">
+          <div class="card vault-sidebar-card">
+            <div class="vault-header">
+              <h3>Private Cloud Vault</h3>
+              <button type="button" id="vaultRefreshBtn" class="btn btn-ghost btn-sm" title="Refresh document list">Refresh</button>
+            </div>
+            <p class="vault-desc">
+              Encrypted documents stored under your private cloud vault session. Retrieve any document directly to decrypt.
+            </p>
+
+            <div id="vaultEmptyState" class="vault-empty">
+              No encrypted documents found in cloud vault.
+            </div>
+
+            <div id="vaultListContainer" class="vault-items-list hidden"></div>
+          </div>
+
+          <div class="card security-sidebar-card">
+            <h3>Decryption Verification</h3>
+            <p class="sec-note">
+              Industry-standard encryption uses an authenticated tag. If an attacker modifies even a single bit of the file or header,
+              or if the passphrase is wrong by a single character, decryption will cleanly fail and refuse to output corrupted data.
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ==================== 4. MY VAULT VIEW ==================== -->
+    <section id="viewVault" class="view hidden" aria-labelledby="vaultHeading">
+      <div class="view-header view-header-actions">
+        <div>
+          <h1 id="vaultHeading">My Encrypted Vault</h1>
+          <p class="view-sub">
+            View, download, and manage your client-side encrypted documents stored in your private cloud vault.
+          </p>
+        </div>
+        <button type="button" id="vaultViewRefreshBtn" class="btn btn-secondary">
+          Refresh Vault
+        </button>
+      </div>
+
+      <div class="card vault-main-card">
+        <!-- Loading State -->
+        <div id="vaultLoadingState" class="vault-state-box hidden" role="status">
+          <div class="spinner" aria-hidden="true"></div>
+          <p>Fetching your encrypted documents from your private cloud vault...</p>
+        </div>
+
+        <!-- Error State -->
+        <div id="vaultErrorState" class="vault-state-box vault-error-state hidden" role="alert">
+          <span class="vault-state-icon" aria-hidden="true">⚠️</span>
+          <p id="vaultErrorMessage">Could not load files from the cloud vault.</p>
+          <button type="button" id="vaultRetryBtn" class="btn btn-secondary btn-sm">Try Again</button>
+        </div>
+
+        <!-- Empty State -->
+        <div id="vaultEmptyStateMain" class="vault-state-box vault-empty-state hidden">
+          <span class="vault-state-icon" aria-hidden="true">🔒</span>
+          <h3>Your Vault is Empty</h3>
+          <p>You haven't uploaded any encrypted documents to your private cloud vault yet.</p>
+          <button type="button" id="vaultGoToEncryptBtn" class="btn btn-primary btn-sm">Encrypt & Upload a Document</button>
+        </div>
+
+        <!-- Files List Container -->
+        <div id="vaultFilesContainer" class="vault-files-container hidden">
+          <div class="vault-table-header">
+            <span>Document ID</span>
+            <span>Security Format</span>
+            <span>Size</span>
+            <span>Uploaded</span>
+            <span style="text-align: right;">Actions</span>
+          </div>
+          <div id="vaultFilesList" class="vault-files-list"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Supabase Authentication Modal -->
+  <div id="authModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="authModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="authModalTitle">Cloud Vault Account Access</h3>
+        <button type="button" id="authCloseBtn" class="btn-close" aria-label="Close modal">×</button>
+      </div>
+      <p class="modal-sub">
+        Sign in to synchronize and manage your client-side encrypted KYC documents in your private cloud vault.
+      </p>
+
+      <div class="auth-tabs">
+        <button type="button" id="tabSignIn" class="auth-tab active">Sign In</button>
+        <button type="button" id="tabSignUp" class="auth-tab">Register</button>
+      </div>
+
+      <form id="authForm" class="auth-form" autocomplete="on">
+        <div class="input-group">
+          <label for="authEmailInput" class="field-label">Email Address</label>
+          <input id="authEmailInput" type="email" placeholder="you@example.com" required autocomplete="email" />
+        </div>
+
+        <div class="input-group">
+          <label for="authPasswordInput" class="field-label">Password</label>
+          <input id="authPasswordInput" type="password" placeholder="Account password" required autocomplete="current-password" />
+        </div>
+
+        <div id="authErrorMessage" class="field-error hidden" role="alert"></div>
+
+        <button type="submit" id="authSubmitBtn" class="btn btn-primary btn-block">
+          Sign In
+        </button>
+      </form>
+
+      <div class="auth-divider"><span>OR</span></div>
+
+      <button type="button" id="authAnonymousBtn" class="btn btn-secondary btn-block">
+        Continue with Anonymous Session
+      </button>
+      <p class="auth-anonymous-note">
+        Anonymous session generates an isolated user ID without storing an email address.
+      </p>
+    </div>
+  </div>
+
+  <!-- Global Toast Notification Container -->
+  <div id="toasts" class="toasts" aria-live="polite" aria-atomic="false"></div>
+
+  <!-- Supabase JS SDK (local vendor bundle, v2.119.0) -->
+  <script src="js/vendor/supabase.js"></script>
+
+  <!-- Main JavaScript App -->
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>
