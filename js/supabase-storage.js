@@ -176,15 +176,31 @@ export async function enrollTOTPFactor(friendlyName = "Authenticator") {
 }
 
 /**
- * Challenges and verifies a TOTP code for a factor.
+ * Creates an MFA challenge for an enrolled factor.
+ * @param {string} factorId
+ * @returns {Promise<{id: string, type: string}>}
+ */
+export async function createMFAChallenge(factorId) {
+  if (!factorId || typeof factorId !== "string") {
+    throw new Error("A valid factor ID is required.");
+  }
+  const client = await getSupabase();
+  const { data, error } = await client.auth.mfa.challenge({ factorId });
+  if (error) throw error;
+  return data;
+}
+
+/**
+ * Verifies an MFA challenge using the 6-digit code.
  * Upgrades the current session to AAL2 upon successful verification.
  * @param {string} factorId
+ * @param {string} challengeId
  * @param {string} code 6-digit TOTP code
  * @returns {Promise<any>}
  */
-export async function challengeAndVerifyMFA(factorId, code) {
-  if (!factorId || typeof factorId !== "string") {
-    throw new Error("A valid factor ID is required.");
+export async function verifyMFAChallenge(factorId, challengeId, code) {
+  if (!factorId || !challengeId) {
+    throw new Error("Factor ID and challenge ID are required.");
   }
   const cleanCode = String(code || "").trim();
   if (!/^\d{6}$/.test(cleanCode)) {
@@ -192,12 +208,25 @@ export async function challengeAndVerifyMFA(factorId, code) {
   }
 
   const client = await getSupabase();
-  const { data, error } = await client.auth.mfa.challengeAndVerify({
+  const { data, error } = await client.auth.mfa.verify({
     factorId,
+    challengeId,
     code: cleanCode,
   });
   if (error) throw error;
   return data;
+}
+
+/**
+ * Challenges and verifies a TOTP code for a factor.
+ * Upgrades the current session to AAL2 upon successful verification.
+ * @param {string} factorId
+ * @param {string} code 6-digit TOTP code
+ * @returns {Promise<any>}
+ */
+export async function challengeAndVerifyMFA(factorId, code) {
+  const challenge = await createMFAChallenge(factorId);
+  return await verifyMFAChallenge(factorId, challenge.id, code);
 }
 
 /**

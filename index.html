@@ -590,6 +590,31 @@
         </button>
       </div>
 
+      <!-- Compact Security Settings Card -->
+      <div id="mfaCompactCard" class="card mfa-compact-settings-card">
+        <div class="mfa-compact-card-inner">
+          <div class="mfa-compact-info">
+            <div class="mfa-compact-icon" aria-hidden="true">🛡️</div>
+            <div class="mfa-compact-text">
+              <div class="mfa-compact-header-line">
+                <span class="mfa-compact-title">Multi-Factor Authentication</span>
+                <span id="mfaCompactStatusBadge" class="mfa-pill mfa-pill-off">Disabled</span>
+              </div>
+              <div class="mfa-compact-meta-line">
+                <span>Status: <strong id="mfaCompactStatusLabel">Disabled</strong></span>
+                <span class="mfa-meta-dot">•</span>
+                <span>Method: <strong>TOTP Authenticator</strong></span>
+              </div>
+            </div>
+          </div>
+          <div class="mfa-compact-action">
+            <button type="button" id="mfaCompactActionBtn" class="btn btn-primary btn-sm">
+              Enable MFA
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div class="card vault-main-card">
         <!-- MFA AAL2 Required Lock State -->
         <div id="vaultMfaLockCard" class="vault-state-box vault-mfa-lock hidden" role="alert">
@@ -681,19 +706,18 @@
         </p>
       </div>
 
-      <!-- MFA TOTP Login Challenge View -->
+      <!-- Compact Login-Time MFA Verification Card -->
       <div id="authTotpChallengeStep" class="auth-totp-step hidden">
         <div class="totp-challenge-header">
           <span class="totp-shield-icon" aria-hidden="true">🛡️</span>
-          <h4>Two-Factor Authentication</h4>
+          <h4>Verify Your Identity</h4>
           <p class="modal-sub" style="margin-bottom: 16px;">
-            Enter the 6-digit verification code from your authenticator app to complete your sign-in.
+            Enter the six-digit verification code from your authenticator app.
           </p>
         </div>
 
         <form id="authTotpForm" class="auth-form" autocomplete="off">
           <div class="input-group">
-            <label for="authTotpCodeInput" class="field-label">Verification Code</label>
             <input
               id="authTotpCodeInput"
               type="text"
@@ -705,118 +729,105 @@
               autocomplete="one-time-code"
               class="totp-code-input"
             />
-            <span class="field-hint">Open Google Authenticator, 1Password, Authy, or your authenticator app.</span>
           </div>
 
           <div id="authTotpErrorMessage" class="field-error hidden" role="alert"></div>
 
           <button type="submit" id="authTotpSubmitBtn" class="btn btn-primary btn-block">
-            Verify & Unlock Session
+            Verify & Continue
           </button>
-          <button type="button" id="authTotpCancelBtn" class="btn btn-ghost btn-block" style="margin-top: 6px;">
-            Cancel & Return to Login
+          <button type="button" id="authTotpCancelBtn" class="btn btn-ghost btn-block btn-sm" style="margin-top: 6px;">
+            Back to Login
           </button>
         </form>
       </div>
     </div>
   </div>
 
-  <!-- Supabase Multi-Factor Authentication (MFA) Settings Modal -->
-  <div id="mfaModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="mfaModalTitle">
-    <div class="modal-card mfa-modal-card">
+  <!-- Compact Authenticator Enrollment Modal -->
+  <div id="mfaEnrollModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="mfaEnrollTitle">
+    <div class="modal-card mfa-modal-compact">
       <div class="modal-header">
-        <h3 id="mfaModalTitle">Multi-Factor Authentication (MFA)</h3>
-        <button type="button" id="mfaCloseBtn" class="btn-close" aria-label="Close modal">×</button>
+        <h3 id="mfaEnrollTitle">Enable Authenticator (MFA)</h3>
+        <button type="button" id="mfaEnrollCloseBtn" class="btn-close" aria-label="Close modal">×</button>
       </div>
-      <p class="modal-sub">
-        Require users to provide an additional verification factor when authenticating to protect their private encrypted vault.
+      <p class="modal-sub" style="margin-bottom: 12px;">
+        Scan the QR code with your authenticator app, then enter the six-digit code.
       </p>
 
-      <!-- MFA Status Overview -->
-      <div class="mfa-status-card">
-        <div class="mfa-status-row">
-          <div>
-            <div class="mfa-status-title">MFA Status</div>
-            <p class="mfa-status-desc" id="mfaStatusDesc">Checking enrollment status...</p>
-          </div>
-          <div class="mfa-badges">
-            <span id="mfaStatusBadge" class="mfa-pill mfa-pill-off">Disabled</span>
-            <span id="mfaAalBadge" class="mfa-pill mfa-pill-info">AAL1</span>
-          </div>
-        </div>
-        <div class="mfa-factor-info">
-          <span class="factor-type-label">Factor Type:</span>
-          <strong>TOTP (App Authenticator)</strong>
-        </div>
+      <div class="mfa-enroll-qr-wrap">
+        <div id="mfaEnrollQrLoading" class="spinner"></div>
+        <img id="mfaEnrollQrImage" class="mfa-enroll-qr-img hidden" alt="TOTP Enrollment QR Code" />
       </div>
 
-      <!-- Enrolled Factors List -->
-      <div id="mfaEnrolledSection" class="mfa-enrolled-section hidden">
-        <h4 class="mfa-section-heading">Enrolled Authenticator Factors</h4>
-        <div id="mfaFactorsList" class="mfa-factors-list"></div>
+      <div class="mfa-enroll-secret-wrap">
+        <span class="mfa-secret-label">Secret:</span>
+        <code id="mfaEnrollSecretCode" class="mfa-secret-value">--------</code>
+        <button type="button" id="mfaEnrollCopySecretBtn" class="btn btn-ghost btn-sm" title="Copy Secret">Copy</button>
       </div>
 
-      <!-- Enrollment Action / Max Notice -->
-      <div id="mfaEnrollActionContainer" class="mfa-action-container">
-        <button type="button" id="mfaStartEnrollBtn" class="btn btn-primary btn-block">
-          <span aria-hidden="true">➕</span> Enroll Authenticator App
+      <form id="mfaEnrollForm" class="auth-form" autocomplete="off" style="margin-top: 14px;">
+        <div class="input-group">
+          <input
+            id="mfaEnrollCodeInput"
+            type="text"
+            inputmode="numeric"
+            pattern="[0-9]{6}"
+            maxlength="6"
+            placeholder="000000"
+            required
+            autocomplete="one-time-code"
+            class="totp-code-input"
+          />
+        </div>
+
+        <div id="mfaEnrollErrorMessage" class="field-error hidden" role="alert"></div>
+
+        <button type="submit" id="mfaEnrollSubmitBtn" class="btn btn-primary btn-block">
+          Verify & Enable MFA
         </button>
-        <div id="mfaMaxFactorsNotice" class="mfa-notice-box hidden">
-          Maximum number of enrolled factors reached. Unenroll an existing factor to add a new one.
+        <button type="button" id="mfaEnrollCancelBtn" class="btn btn-ghost btn-block btn-sm" style="margin-top: 4px;">
+          Cancel
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Compact Manage MFA Modal -->
+  <div id="mfaManageModal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="mfaManageTitle">
+    <div class="modal-card mfa-modal-compact">
+      <div class="modal-header">
+        <h3 id="mfaManageTitle">Manage Multi-Factor Authentication</h3>
+        <button type="button" id="mfaManageCloseBtn" class="btn-close" aria-label="Close modal">×</button>
+      </div>
+
+      <div class="mfa-manage-details">
+        <div class="mfa-manage-row">
+          <span>Status</span>
+          <span class="mfa-pill mfa-pill-on">Enabled</span>
+        </div>
+        <div class="mfa-manage-row">
+          <span>Method</span>
+          <strong>TOTP Authenticator</strong>
+        </div>
+        <div class="mfa-manage-row">
+          <span>Assurance Level</span>
+          <span id="mfaManageAalBadge" class="mfa-pill mfa-pill-on">AAL2</span>
+        </div>
+        <div class="mfa-manage-row" id="mfaManageFactorDateRow">
+          <span>Enrolled</span>
+          <span id="mfaManageFactorDate">Active</span>
         </div>
       </div>
 
-      <!-- Active Enrollment View (QR code + secret + verify) -->
-      <div id="mfaEnrollmentCard" class="mfa-enroll-box hidden">
-        <h4 class="mfa-section-heading">Set Up Authenticator App</h4>
-        <p class="mfa-step-desc">
-          <strong>1.</strong> Scan this QR code with Google Authenticator, 1Password, Authy, or another authenticator app:
-        </p>
-        <div class="mfa-qr-container">
-          <div id="mfaQrLoading" class="spinner"></div>
-          <img id="mfaQrImage" class="mfa-qr-img hidden" alt="TOTP Enrollment QR Code" />
-        </div>
+      <div id="mfaManageErrorMessage" class="field-error hidden" role="alert" style="margin-top: 10px;"></div>
 
-        <p class="mfa-step-desc">
-          <strong>2.</strong> Or enter this manual setup secret into your authenticator app:
-        </p>
-        <div class="mfa-secret-box">
-          <code id="mfaSecretText" class="mfa-secret-code">--------</code>
-          <button type="button" id="mfaCopySecretBtn" class="btn btn-secondary btn-sm" title="Copy secret">
-            Copy
-          </button>
-        </div>
-
-        <p class="mfa-step-desc">
-          <strong>3.</strong> Enter the 6-digit code shown in your authenticator app to complete enrollment:
-        </p>
-        <form id="mfaVerifyEnrollForm" class="auth-form" autocomplete="off">
-          <div class="input-group">
-            <input
-              id="mfaEnrollCodeInput"
-              type="text"
-              inputmode="numeric"
-              pattern="[0-9]{6}"
-              maxlength="6"
-              placeholder="000000"
-              required
-              autocomplete="one-time-code"
-              class="totp-code-input"
-            />
-          </div>
-          <div id="mfaEnrollErrorMessage" class="field-error hidden" role="alert"></div>
-          <div class="mfa-btn-row">
-            <button type="submit" id="mfaVerifyEnrollBtn" class="btn btn-primary">
-              Verify & Complete Enrollment
-            </button>
-            <button type="button" id="mfaCancelEnrollBtn" class="btn btn-ghost">
-              Cancel
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div id="mfaGeneralError" class="field-error hidden" role="alert" style="margin-top: 14px;"></div>
+      <button type="button" id="mfaDisableBtn" class="btn btn-danger btn-block btn-sm" style="margin-top: 16px;">
+        Disable Multi-Factor Authentication
+      </button>
+      <button type="button" id="mfaManageCloseBottomBtn" class="btn btn-ghost btn-block btn-sm" style="margin-top: 4px;">
+        Close
+      </button>
     </div>
   </div>
 

@@ -91,7 +91,7 @@ const els = {
   authSubmitBtn: $("authSubmitBtn"),
   authAnonymousBtn: $("authAnonymousBtn"),
 
-  // Login TOTP Challenge Step
+  // Login TOTP Challenge Step (Verify Your Identity)
   authTotpChallengeStep: $("authTotpChallengeStep"),
   authTotpForm: $("authTotpForm"),
   authTotpCodeInput: $("authTotpCodeInput"),
@@ -99,28 +99,33 @@ const els = {
   authTotpSubmitBtn: $("authTotpSubmitBtn"),
   authTotpCancelBtn: $("authTotpCancelBtn"),
 
-  // MFA Settings Modal
-  mfaModal: $("mfaModal"),
-  mfaCloseBtn: $("mfaCloseBtn"),
-  mfaStatusBadge: $("mfaStatusBadge"),
-  mfaAalBadge: $("mfaAalBadge"),
-  mfaStatusDesc: $("mfaStatusDesc"),
-  mfaEnrolledSection: $("mfaEnrolledSection"),
-  mfaFactorsList: $("mfaFactorsList"),
-  mfaEnrollActionContainer: $("mfaEnrollActionContainer"),
-  mfaStartEnrollBtn: $("mfaStartEnrollBtn"),
-  mfaMaxFactorsNotice: $("mfaMaxFactorsNotice"),
-  mfaEnrollmentCard: $("mfaEnrollmentCard"),
-  mfaQrLoading: $("mfaQrLoading"),
-  mfaQrImage: $("mfaQrImage"),
-  mfaSecretText: $("mfaSecretText"),
-  mfaCopySecretBtn: $("mfaCopySecretBtn"),
-  mfaVerifyEnrollForm: $("mfaVerifyEnrollForm"),
+  // Compact MFA Settings Card (in My Vault)
+  mfaCompactCard: $("mfaCompactCard"),
+  mfaCompactStatusBadge: $("mfaCompactStatusBadge"),
+  mfaCompactStatusLabel: $("mfaCompactStatusLabel"),
+  mfaCompactActionBtn: $("mfaCompactActionBtn"),
+
+  // Compact Enrollment Modal
+  mfaEnrollModal: $("mfaEnrollModal"),
+  mfaEnrollCloseBtn: $("mfaEnrollCloseBtn"),
+  mfaEnrollQrLoading: $("mfaEnrollQrLoading"),
+  mfaEnrollQrImage: $("mfaEnrollQrImage"),
+  mfaEnrollSecretCode: $("mfaEnrollSecretCode"),
+  mfaEnrollCopySecretBtn: $("mfaEnrollCopySecretBtn"),
+  mfaEnrollForm: $("mfaEnrollForm"),
   mfaEnrollCodeInput: $("mfaEnrollCodeInput"),
   mfaEnrollErrorMessage: $("mfaEnrollErrorMessage"),
-  mfaVerifyEnrollBtn: $("mfaVerifyEnrollBtn"),
-  mfaCancelEnrollBtn: $("mfaCancelEnrollBtn"),
-  mfaGeneralError: $("mfaGeneralError"),
+  mfaEnrollSubmitBtn: $("mfaEnrollSubmitBtn"),
+  mfaEnrollCancelBtn: $("mfaEnrollCancelBtn"),
+
+  // Compact Manage MFA Modal
+  mfaManageModal: $("mfaManageModal"),
+  mfaManageCloseBtn: $("mfaManageCloseBtn"),
+  mfaManageCloseBottomBtn: $("mfaManageCloseBottomBtn"),
+  mfaManageAalBadge: $("mfaManageAalBadge"),
+  mfaManageFactorDate: $("mfaManageFactorDate"),
+  mfaManageErrorMessage: $("mfaManageErrorMessage"),
+  mfaDisableBtn: $("mfaDisableBtn"),
 
   // Home CTA Buttons
   homeHeroEncryptBtn: $("homeHeroEncryptBtn"),
@@ -225,6 +230,9 @@ let decryptGen = 0;
 let activeUploadTask = null;
 let isPreservingDecryptFile = false; // Preserves file loaded from Vault into Decrypt
 let authMode = "signin"; // "signin" | "signup"
+let currentMfaFactorId = null;
+let pendingEnrollFactorId = null;
+let loginChallengeFactorId = null;
 
 /* ---------- Utility Functions ---------- */
 
@@ -337,10 +345,32 @@ async function updateAuthUI(user) {
     els.authEmailText.textContent = display;
     els.authEmailText.title = user.id;
 
-    // Check MFA status
+    // Show compact security settings card
+    if (els.mfaCompactCard) {
+      els.mfaCompactCard.classList.remove("hidden");
+    }
+
+    // Check MFA status from Supabase
     try {
       const aal = await getAssuranceLevel();
-      if (aal && aal.nextLevel === "aal2") {
+      const factors = await listMFAFactors();
+      const verifiedFactors = factors.all?.filter((f) => f.status === "verified") || [];
+      const isMfaActive = aal.nextLevel === "aal2" || verifiedFactors.length > 0;
+
+      if (isMfaActive) {
+        currentMfaFactorId = verifiedFactors[0]?.id || null;
+        if (els.mfaCompactStatusBadge) {
+          els.mfaCompactStatusBadge.className = "mfa-pill mfa-pill-on";
+          els.mfaCompactStatusBadge.textContent = "Enabled";
+        }
+        if (els.mfaCompactStatusLabel) {
+          els.mfaCompactStatusLabel.textContent = "Enabled";
+        }
+        if (els.mfaCompactActionBtn) {
+          els.mfaCompactActionBtn.textContent = "Manage MFA";
+          els.mfaCompactActionBtn.className = "btn btn-secondary btn-sm";
+        }
+
         if (aal.currentLevel === "aal2") {
           els.topbarMfaText.textContent = "MFA Active (AAL2)";
           els.mfaSettingsOpenBtn.className = "btn btn-secondary btn-sm mfa-topbar-btn";
@@ -349,6 +379,19 @@ async function updateAuthUI(user) {
           els.mfaSettingsOpenBtn.className = "btn btn-warn btn-sm mfa-topbar-btn";
         }
       } else {
+        currentMfaFactorId = null;
+        if (els.mfaCompactStatusBadge) {
+          els.mfaCompactStatusBadge.className = "mfa-pill mfa-pill-off";
+          els.mfaCompactStatusBadge.textContent = "Disabled";
+        }
+        if (els.mfaCompactStatusLabel) {
+          els.mfaCompactStatusLabel.textContent = "Disabled";
+        }
+        if (els.mfaCompactActionBtn) {
+          els.mfaCompactActionBtn.textContent = "Enable MFA";
+          els.mfaCompactActionBtn.className = "btn btn-primary btn-sm";
+        }
+
         els.topbarMfaText.textContent = "MFA Off";
         els.mfaSettingsOpenBtn.className = "btn btn-ghost btn-sm mfa-topbar-btn";
       }
@@ -360,6 +403,10 @@ async function updateAuthUI(user) {
     els.authProfile.classList.add("hidden");
     els.authEmailText.textContent = "user";
     els.topbarMfaText.textContent = "MFA";
+    if (els.mfaCompactCard) {
+      els.mfaCompactCard.classList.add("hidden");
+    }
+    currentMfaFactorId = null;
   }
 }
 
@@ -375,8 +422,8 @@ function setAuthViewMode(view) {
   if (view === "totp") {
     els.authStandardView.classList.add("hidden");
     els.authTotpChallengeStep.classList.remove("hidden");
-    els.authModalTitle.textContent = "Two-Factor Verification";
-    els.authModalSub.textContent = "Enter your authenticator app code to complete sign-in.";
+    els.authModalTitle.textContent = "Verify Your Identity";
+    els.authModalSub.textContent = "Enter the six-digit verification code from your authenticator app.";
     els.authTotpCodeInput.value = "";
     setFieldError(els.authTotpErrorMessage, null);
     setTimeout(() => els.authTotpCodeInput.focus(), 50);
@@ -409,112 +456,94 @@ function closeAuthModal() {
   setFieldError(els.authErrorMessage, null);
   setFieldError(els.authTotpErrorMessage, null);
   setAuthViewMode("standard");
+  loginChallengeFactorId = null;
 }
 
-/* ---------- MFA Settings Modal Logic ---------- */
+/* ---------- Compact Authenticator Enrollment Modal ---------- */
 
-let pendingEnrollmentFactorId = null;
+async function openMfaEnrollModal() {
+  const user = await getCurrentUser();
+  if (!user) {
+    openAuthModal();
+    return;
+  }
 
-function openMfaModal() {
-  setFieldError(els.mfaGeneralError, null);
+  els.mfaEnrollModal.classList.remove("hidden");
   setFieldError(els.mfaEnrollErrorMessage, null);
-  els.mfaEnrollmentCard.classList.add("hidden");
-  pendingEnrollmentFactorId = null;
-  els.mfaModal.classList.remove("hidden");
-  refreshMfaModal();
+  els.mfaEnrollQrLoading.classList.remove("hidden");
+  els.mfaEnrollQrImage.classList.add("hidden");
+  els.mfaEnrollSecretCode.textContent = "Generating...";
+  els.mfaEnrollCodeInput.value = "";
+  pendingEnrollFactorId = null;
+
+  try {
+    const factor = await enrollTOTPFactor("ZeroKnowledgeKYC");
+    pendingEnrollFactorId = factor.id;
+
+    if (factor.totp) {
+      els.mfaEnrollSecretCode.textContent = factor.totp.secret || "";
+      if (factor.totp.qr_code) {
+        els.mfaEnrollQrImage.src = factor.totp.qr_code;
+        els.mfaEnrollQrLoading.classList.add("hidden");
+        els.mfaEnrollQrImage.classList.remove("hidden");
+      }
+    }
+    setTimeout(() => els.mfaEnrollCodeInput.focus(), 50);
+  } catch (err) {
+    setFieldError(els.mfaEnrollErrorMessage, friendlySupabaseError(err));
+    pendingEnrollFactorId = null;
+  }
 }
 
-function closeMfaModal() {
-  els.mfaModal.classList.add("hidden");
-  els.mfaEnrollmentCard.classList.add("hidden");
-  pendingEnrollmentFactorId = null;
+function closeMfaEnrollModal() {
+  els.mfaEnrollModal.classList.add("hidden");
+  pendingEnrollFactorId = null;
+  els.mfaEnrollCodeInput.value = "";
+  setFieldError(els.mfaEnrollErrorMessage, null);
 }
 
-async function refreshMfaModal() {
-  els.mfaStatusDesc.textContent = "Loading MFA status...";
-  els.mfaStatusBadge.className = "mfa-pill mfa-pill-off";
-  els.mfaStatusBadge.textContent = "Loading...";
-  setFieldError(els.mfaGeneralError, null);
+/* ---------- Compact Manage MFA Modal ---------- */
+
+async function openMfaManageModal() {
+  const user = await getCurrentUser();
+  if (!user) {
+    openAuthModal();
+    return;
+  }
+
+  els.mfaManageModal.classList.remove("hidden");
+  setFieldError(els.mfaManageErrorMessage, null);
 
   try {
     const aal = await getAssuranceLevel();
     const factors = await listMFAFactors();
-    const verifiedFactors = factors.all?.filter((f) => f.status === "verified") || [];
+    const verified = factors.all?.filter((f) => f.status === "verified") || [];
 
-    const isMfaActive = aal.nextLevel === "aal2" || verifiedFactors.length > 0;
-    if (isMfaActive) {
-      els.mfaStatusBadge.className = "mfa-pill mfa-pill-on";
-      els.mfaStatusBadge.textContent = "Enabled";
-      els.mfaStatusDesc.textContent = "Two-factor authentication is active on your account.";
+    const aalDisplay = aal.currentLevel ? aal.currentLevel.toUpperCase() : "AAL2";
+    els.mfaManageAalBadge.textContent = aalDisplay;
+    els.mfaManageAalBadge.className = aalDisplay === "AAL2" ? "mfa-pill mfa-pill-on" : "mfa-pill mfa-pill-warn";
+
+    if (verified.length > 0 && verified[0].created_at) {
+      els.mfaManageFactorDate.textContent = new Date(verified[0].created_at).toLocaleDateString();
+      currentMfaFactorId = verified[0].id;
     } else {
-      els.mfaStatusBadge.className = "mfa-pill mfa-pill-off";
-      els.mfaStatusBadge.textContent = "Disabled";
-      els.mfaStatusDesc.textContent = "Require an additional verification factor (TOTP) when authenticating.";
-    }
-
-    const currentAal = aal.currentLevel ? aal.currentLevel.toUpperCase() : "AAL1";
-    els.mfaAalBadge.textContent = currentAal;
-    els.mfaAalBadge.className = currentAal === "AAL2" ? "mfa-pill mfa-pill-on" : "mfa-pill mfa-pill-info";
-
-    // Render verified factors list
-    if (verifiedFactors.length > 0) {
-      els.mfaEnrolledSection.classList.remove("hidden");
-      els.mfaFactorsList.textContent = "";
-
-      for (const factor of verifiedFactors) {
-        const item = document.createElement("div");
-        item.className = "mfa-factor-item";
-
-        const meta = document.createElement("div");
-        meta.className = "mfa-factor-meta";
-
-        const name = document.createElement("div");
-        name.className = "mfa-factor-name";
-        name.textContent = factor.friendly_name || "Authenticator App (TOTP)";
-
-        const sub = document.createElement("div");
-        sub.className = "mfa-factor-sub";
-        const enrolledDate = factor.created_at ? new Date(factor.created_at).toLocaleDateString() : "Active";
-        sub.textContent = `Enrolled: ${enrolledDate} • Factor ID: ${factor.id.slice(0, 8)}...`;
-
-        meta.appendChild(name);
-        meta.appendChild(sub);
-
-        const unenrollBtn = document.createElement("button");
-        unenrollBtn.type = "button";
-        unenrollBtn.className = "btn btn-danger btn-sm";
-        unenrollBtn.textContent = "Unenroll";
-        unenrollBtn.addEventListener("click", async () => {
-          const confirmed = window.confirm(
-            "Are you sure you want to unenroll this authenticator factor?\n\nIf you remove all factors, your account will downgrade to single-factor authentication (AAL1)."
-          );
-          if (!confirmed) return;
-
-          unenrollBtn.disabled = true;
-          unenrollBtn.textContent = "Removing...";
-          try {
-            await unenrollMFAFactor(factor.id);
-            showToast("Authenticator factor successfully unenrolled.", "info", 3000);
-            await refreshMfaModal();
-            const user = await getCurrentUser();
-            updateAuthUI(user);
-          } catch (err) {
-            setFieldError(els.mfaGeneralError, `Failed to unenroll factor: ${friendlySupabaseError(err)}`);
-            unenrollBtn.disabled = false;
-            unenrollBtn.textContent = "Unenroll";
-          }
-        });
-
-        item.appendChild(meta);
-        item.appendChild(unenrollBtn);
-        els.mfaFactorsList.appendChild(item);
-      }
-    } else {
-      els.mfaEnrolledSection.classList.add("hidden");
-      els.mfaFactorsList.textContent = "";
+      els.mfaManageFactorDate.textContent = "Active";
     }
   } catch (err) {
-    setFieldError(els.mfaGeneralError, friendlySupabaseError(err));
+    setFieldError(els.mfaManageErrorMessage, friendlySupabaseError(err));
+  }
+}
+
+function closeMfaManageModal() {
+  els.mfaManageModal.classList.add("hidden");
+  setFieldError(els.mfaManageErrorMessage, null);
+}
+
+function handleMfaAction() {
+  if (currentMfaFactorId) {
+    openMfaManageModal();
+  } else {
+    openMfaEnrollModal();
   }
 }
 
@@ -1450,6 +1479,7 @@ els.authModal.addEventListener("click", (e) => {
 els.tabSignIn.addEventListener("click", () => setAuthMode("signin"));
 els.tabSignUp.addEventListener("click", () => setAuthMode("signup"));
 
+// Step 1 & 2: Normal Login & Check MFA Status
 els.authForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const email = els.authEmailInput.value.trim();
@@ -1465,24 +1495,39 @@ els.authForm.addEventListener("submit", async (e) => {
 
   try {
     if (authMode === "signin") {
+      // Step 1: Normal login with email and password
       await signInWithEmail(email, password);
-      // Check if user has enrolled MFA and needs TOTP challenge
+
+      // Step 2: Retrieve actual Supabase MFA factors and check assurance level
+      const factors = await listMFAFactors();
+      const verifiedTotpFactor =
+        factors.totp?.[0] ||
+        factors.all?.find((f) => f.factor_type === "totp" && f.status === "verified");
       const aal = await getAssuranceLevel();
-      if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
+
+      // If user has verified TOTP factor, do NOT grant access yet; prompt for 6-digit code
+      if (verifiedTotpFactor && (aal.nextLevel === "aal2" || aal.currentLevel !== "aal2")) {
+        loginChallengeFactorId = verifiedTotpFactor.id;
         setAuthViewMode("totp");
-        showToast("Password verified. Please enter your authenticator code.", "info", 3500);
         return;
       }
+
+      // If no verified MFA factor, continue normal login
+      closeAuthModal();
       showToast("Signed in successfully.", "success", 3000);
+      const user = await getCurrentUser();
+      await updateAuthUI(user);
+      if (currentView === "vault") loadVaultMain();
+      renderSidebarVault();
     } else {
       await signUpWithEmail(email, password);
       showToast("Account created. Check your email if confirmation is required.", "success", 4000);
+      closeAuthModal();
+      const user = await getCurrentUser();
+      await updateAuthUI(user);
+      if (currentView === "vault") loadVaultMain();
+      renderSidebarVault();
     }
-    closeAuthModal();
-    const user = await getCurrentUser();
-    await updateAuthUI(user);
-    if (currentView === "vault") loadVaultMain();
-    renderSidebarVault();
   } catch (err) {
     setFieldError(els.authErrorMessage, friendlySupabaseError(err));
   } finally {
@@ -1490,13 +1535,13 @@ els.authForm.addEventListener("submit", async (e) => {
   }
 });
 
-// Login TOTP Challenge Verification
+// Step 3 & 4: Login-Time MFA Challenge Verification
 els.authTotpForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const code = els.authTotpCodeInput.value.trim();
 
   if (!/^\d{6}$/.test(code)) {
-    setFieldError(els.authTotpErrorMessage, "Please enter a valid 6-digit code.");
+    setFieldError(els.authTotpErrorMessage, "Please enter a valid 6-digit verification code.");
     return;
   }
 
@@ -1504,18 +1549,26 @@ els.authTotpForm.addEventListener("submit", async (e) => {
   els.authTotpSubmitBtn.disabled = true;
 
   try {
-    const factors = await listMFAFactors();
-    const totpFactor =
-      factors.totp?.[0] ||
-      factors.all?.find((f) => f.factor_type === "totp" && f.status === "verified");
-
-    if (!totpFactor) {
-      throw new Error("No verified authenticator factor found for this account.");
+    if (!loginChallengeFactorId) {
+      const factors = await listMFAFactors();
+      const verified =
+        factors.totp?.[0] ||
+        factors.all?.find((f) => f.factor_type === "totp" && f.status === "verified");
+      if (!verified) throw new Error("No verified authenticator factor found for this account.");
+      loginChallengeFactorId = verified.id;
     }
 
-    await challengeAndVerifyMFA(totpFactor.id, code);
+    // Step 4: Verify the authenticator code with Supabase
+    await challengeAndVerifyMFA(loginChallengeFactorId, code);
+
+    // Confirm assurance level reaches AAL2
+    const aal = await getAssuranceLevel();
+    if (aal.currentLevel !== "aal2") {
+      throw new Error("Authentication assurance level could not reach AAL2.");
+    }
+
     closeAuthModal();
-    showToast("Two-factor authentication verified! Access granted.", "success", 3500);
+    showToast("Identity verified successfully. Welcome!", "success", 3000);
 
     const user = await getCurrentUser();
     await updateAuthUI(user);
@@ -1571,95 +1624,57 @@ els.authSignOutBtn.addEventListener("click", async () => {
   }
 });
 
-// MFA Settings Listeners
-els.mfaSettingsOpenBtn.addEventListener("click", openMfaModal);
-els.mfaCloseBtn.addEventListener("click", closeMfaModal);
-els.mfaModal.addEventListener("click", (e) => {
-  if (e.target === els.mfaModal) closeMfaModal();
+// Compact MFA Action Listeners (Header button & Dashboard Settings card)
+els.mfaSettingsOpenBtn.addEventListener("click", handleMfaAction);
+if (els.mfaCompactActionBtn) {
+  els.mfaCompactActionBtn.addEventListener("click", handleMfaAction);
+}
+
+// Compact Enrollment Modal Listeners
+els.mfaEnrollCloseBtn.addEventListener("click", closeMfaEnrollModal);
+els.mfaEnrollCancelBtn.addEventListener("click", closeMfaEnrollModal);
+els.mfaEnrollModal.addEventListener("click", (e) => {
+  if (e.target === els.mfaEnrollModal) closeMfaEnrollModal();
 });
 
-els.vaultVerifyMfaBtn.addEventListener("click", () => {
-  openTotpChallengeModal();
-});
-
-els.mfaStartEnrollBtn.addEventListener("click", async () => {
-  setFieldError(els.mfaGeneralError, null);
-  setFieldError(els.mfaEnrollErrorMessage, null);
-  els.mfaStartEnrollBtn.disabled = true;
-  els.mfaEnrollmentCard.classList.remove("hidden");
-  els.mfaQrLoading.classList.remove("hidden");
-  els.mfaQrImage.classList.add("hidden");
-  els.mfaSecretText.textContent = "Generating...";
-  els.mfaEnrollCodeInput.value = "";
-
-  try {
-    const factor = await enrollTOTPFactor("ZeroKnowledgeKYC");
-    pendingEnrollmentFactorId = factor.id;
-
-    if (factor.totp) {
-      els.mfaSecretText.textContent = factor.totp.secret || "";
-      if (factor.totp.qr_code) {
-        els.mfaQrImage.src = factor.totp.qr_code;
-        els.mfaQrLoading.classList.add("hidden");
-        els.mfaQrImage.classList.remove("hidden");
-      }
-    }
-    els.mfaEnrollCodeInput.focus();
-  } catch (err) {
-    setFieldError(els.mfaGeneralError, friendlySupabaseError(err));
-    els.mfaEnrollmentCard.classList.add("hidden");
-    pendingEnrollmentFactorId = null;
-  } finally {
-    els.mfaStartEnrollBtn.disabled = false;
-  }
-});
-
-els.mfaCopySecretBtn.addEventListener("click", async () => {
-  const secret = els.mfaSecretText.textContent;
+els.mfaEnrollCopySecretBtn.addEventListener("click", async () => {
+  const secret = els.mfaEnrollSecretCode.textContent;
   if (!secret || secret === "Generating...") return;
   try {
     await navigator.clipboard.writeText(secret);
-    const orig = els.mfaCopySecretBtn.textContent;
-    els.mfaCopySecretBtn.textContent = "Copied!";
+    const orig = els.mfaEnrollCopySecretBtn.textContent;
+    els.mfaEnrollCopySecretBtn.textContent = "Copied!";
     setTimeout(() => {
-      els.mfaCopySecretBtn.textContent = orig;
+      els.mfaEnrollCopySecretBtn.textContent = orig;
     }, 2000);
-    showToast("Setup secret copied to clipboard.", "info", 2000);
+    showToast("Secret copied to clipboard.", "info", 2000);
   } catch {
     showToast("Failed to copy secret.", "error", 2000);
   }
 });
 
-els.mfaCancelEnrollBtn.addEventListener("click", () => {
-  els.mfaEnrollmentCard.classList.add("hidden");
-  pendingEnrollmentFactorId = null;
-  setFieldError(els.mfaEnrollErrorMessage, null);
-});
-
-els.mfaVerifyEnrollForm.addEventListener("submit", async (e) => {
+els.mfaEnrollForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const code = els.mfaEnrollCodeInput.value.trim();
 
   if (!/^\d{6}$/.test(code)) {
-    setFieldError(els.mfaEnrollErrorMessage, "Please enter a valid 6-digit verification code.");
+    setFieldError(els.mfaEnrollErrorMessage, "Please enter a valid 6-digit code.");
     return;
   }
 
-  if (!pendingEnrollmentFactorId) {
-    setFieldError(els.mfaEnrollErrorMessage, "Enrollment session expired. Please click 'Enroll Authenticator App' again.");
+  if (!pendingEnrollFactorId) {
+    setFieldError(els.mfaEnrollErrorMessage, "Enrollment session expired. Please reopen and try again.");
     return;
   }
 
   setFieldError(els.mfaEnrollErrorMessage, null);
-  els.mfaVerifyEnrollBtn.disabled = true;
+  els.mfaEnrollSubmitBtn.disabled = true;
 
   try {
-    await challengeAndVerifyMFA(pendingEnrollmentFactorId, code);
-    showToast("Authenticator app verified successfully! MFA is now active.", "success", 4000);
-    els.mfaEnrollmentCard.classList.add("hidden");
-    pendingEnrollmentFactorId = null;
+    await challengeAndVerifyMFA(pendingEnrollFactorId, code);
+    showToast("Multi-Factor Authentication enabled successfully!", "success", 4000);
+    closeMfaEnrollModal();
 
-    await refreshMfaModal();
     const user = await getCurrentUser();
     await updateAuthUI(user);
     if (currentView === "vault") loadVaultMain();
@@ -1668,8 +1683,50 @@ els.mfaVerifyEnrollForm.addEventListener("submit", async (e) => {
     setFieldError(els.mfaEnrollErrorMessage, friendlySupabaseError(err));
     els.mfaEnrollCodeInput.focus();
   } finally {
-    els.mfaVerifyEnrollBtn.disabled = false;
+    els.mfaEnrollSubmitBtn.disabled = false;
   }
+});
+
+// Compact Manage MFA Modal Listeners
+els.mfaManageCloseBtn.addEventListener("click", closeMfaManageModal);
+els.mfaManageCloseBottomBtn.addEventListener("click", closeMfaManageModal);
+els.mfaManageModal.addEventListener("click", (e) => {
+  if (e.target === els.mfaManageModal) closeMfaManageModal();
+});
+
+els.mfaDisableBtn.addEventListener("click", async () => {
+  if (!currentMfaFactorId) {
+    setFieldError(els.mfaManageErrorMessage, "No active factor found to disable.");
+    return;
+  }
+
+  const confirmed = window.confirm(
+    "Are you sure you want to disable Multi-Factor Authentication?\n\nYour account will return to single-factor password login."
+  );
+  if (!confirmed) return;
+
+  els.mfaDisableBtn.disabled = true;
+  els.mfaDisableBtn.textContent = "Disabling...";
+
+  try {
+    await unenrollMFAFactor(currentMfaFactorId);
+    showToast("Multi-Factor Authentication has been disabled.", "info", 3000);
+    closeMfaManageModal();
+
+    const user = await getCurrentUser();
+    await updateAuthUI(user);
+    if (currentView === "vault") loadVaultMain();
+    renderSidebarVault();
+  } catch (err) {
+    setFieldError(els.mfaManageErrorMessage, friendlySupabaseError(err));
+    els.mfaDisableBtn.disabled = false;
+    els.mfaDisableBtn.textContent = "Disable Multi-Factor Authentication";
+  }
+});
+
+// Vault Lock Card Button
+els.vaultVerifyMfaBtn.addEventListener("click", () => {
+  openTotpChallengeModal();
 });
 
 // Subscribe to auth state changes
@@ -1716,7 +1773,14 @@ if (isSupabaseConfigured()) {
       if (user) {
         const aal = await getAssuranceLevel();
         if (aal && aal.nextLevel === "aal2" && aal.currentLevel !== "aal2") {
-          // Intermediate AAL1 state: prompt user to complete 2FA challenge
+          // Intermediate AAL1 state on page refresh: challenge user
+          const factors = await listMFAFactors();
+          const verified =
+            factors.totp?.[0] ||
+            factors.all?.find((f) => f.factor_type === "totp" && f.status === "verified");
+          if (verified) {
+            loginChallengeFactorId = verified.id;
+          }
           openTotpChallengeModal();
         } else {
           renderSidebarVault();

@@ -95,3 +95,24 @@ WITH CHECK (
     OR ((storage.foldername(name))[1] = 'users' AND (storage.foldername(name))[2] = (auth.uid())::text)
   )
 );
+
+-- ==============================================================================
+-- 7. Multi-Factor Authentication (AAL2) Database-Level Enforcement Notes
+-- ==============================================================================
+-- The application client code enforces AAL2 verification before executing
+-- storage uploads, listing, downloading, and deleting.
+-- To also enforce AAL2 at the database Row-Level Security layer for users
+-- who have enrolled TOTP, you can include the following check in your policies:
+--
+-- AND (
+--   (auth.jwt() ->> 'aal') = 'aal2'
+--   OR NOT EXISTS (
+--     SELECT 1 FROM auth.mfa_factors
+--     WHERE auth.mfa_factors.user_id = auth.uid()
+--     AND auth.mfa_factors.status = 'verified'
+--   )
+-- )
+--
+-- This ensures Postgres mathematically rejects unverified single-factor requests
+-- for any user who has activated Multi-Factor Authentication.
+-- ==============================================================================

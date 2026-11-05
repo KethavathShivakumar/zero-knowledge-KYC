@@ -113,19 +113,23 @@ Please read these points before using this application:
 ### 3. Verify Multi-Factor Authentication (MFA / TOTP)
 1. **Enroll Authenticator**:
    - Sign in to your account.
-   - Click the **🔒 MFA** button in the top navigation bar.
-   - Click **Enroll Authenticator App**.
-   - Scan the rendered QR code with Google Authenticator, 1Password, or Authy (or copy the manual secret key).
-   - Enter the 6-digit code from the authenticator app and click **Verify & Complete Enrollment**.
-   - Your account status will update to **Enabled (AAL2)**.
-2. **Verify Login Challenge**:
+   - On the **My Vault** view (or via the **🔒 MFA** topbar button), locate the compact **Multi-Factor Authentication** settings card.
+   - Click **Enable MFA**. A compact enrollment modal opens with a clean QR code and copyable setup secret.
+   - Scan the QR code with Google Authenticator, 1Password, or Authy (or copy the manual secret key).
+   - Enter the 6-digit code from the authenticator app and click **Verify & Enable MFA**.
+   - Upon verification, the modal closes and the compact card updates to **Status: Enabled** and **Manage MFA**.
+2. **Verify Login Challenge (Step 1 -> Step 4)**:
    - Click **Sign Out** in the top navigation bar.
-   - Click **Sign In / Register** and enter your account email and password.
-   - You will immediately see the **Two-Factor Authentication** challenge prompting for your 6-digit authenticator code.
-   - Entering an invalid code displays a clear error and prevents access.
-   - Entering the correct 6-digit code elevates the session to AAL2 and unlocks the private vault.
+   - Click **Sign In / Register** and enter your account email and password (**Step 1**).
+   - After password verification, the system detects enrolled MFA (**Step 2**) and displays the compact **Verify Your Identity** card (**Step 3**).
+   - Enter your six-digit authenticator code (**Step 4**):
+     - Entering an invalid code displays an inline error below the input and denies access.
+     - Entering the correct six-digit code elevates the session to AAL2 and grants access to the dashboard and vault.
+   - Clicking **Back to Login** signs out safely without granting access.
 3. **Verify Route & Vault Protection (AAL2 Enforcement)**:
    - If an account has MFA enrolled but is only at AAL1, access to the private vault, document downloads, and uploads is locked until 2FA challenge verification is completed.
-   - Refreshing the page automatically detects the intermediate AAL1 state and presents the TOTP verification challenge without allowing vault access.
-4. **Unenroll Factor**:
-   - In the **Security & MFA** modal, click **Unenroll** next to the enrolled factor and confirm the prompt to downgrade back to single-factor authentication.
+   - Refreshing the page automatically detects the intermediate AAL1 state and presents the compact TOTP verification challenge without allowing vault access.
+4. **Manage & Disable MFA**:
+   - On the compact settings card, click **Manage MFA**.
+   - A compact modal opens displaying active factor status and enrollment date.
+   - Click **Disable Multi-Factor Authentication** and confirm to return to password-only login.

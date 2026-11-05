@@ -1497,8 +1497,74 @@ input:focus {
   padding: 4px 10px;
 }
 
-.mfa-modal-card {
-  max-width: 480px;
+/* Compact Security Settings Card */
+.mfa-compact-settings-card {
+  margin-bottom: 20px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.mfa-compact-card-inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.mfa-compact-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mfa-compact-icon {
+  font-size: 1.8rem;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mfa-compact-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.mfa-compact-header-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mfa-compact-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.mfa-compact-meta-line {
+  font-size: 0.84rem;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.mfa-meta-dot {
+  color: var(--border-hover);
+}
+
+.mfa-compact-action {
+  flex-shrink: 0;
+}
+
+/* Compact Modals */
+.mfa-modal-compact {
+  max-width: 380px;
+  width: 100%;
 }
 
 .totp-challenge-header {
@@ -1527,39 +1593,6 @@ input:focus {
   text-align: center;
   padding: 10px 14px !important;
   color: var(--text);
-}
-
-.mfa-status-card {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px;
-  margin-bottom: 16px;
-}
-
-.mfa-status-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.mfa-status-title {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.mfa-status-desc {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.mfa-badges {
-  display: flex;
-  gap: 6px;
-  flex-shrink: 0;
 }
 
 .mfa-pill {
@@ -1595,141 +1628,74 @@ input:focus {
   border: 1px solid var(--warn-border);
 }
 
-.mfa-factor-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 0.84rem;
-  color: var(--text-secondary);
-  border-top: 1px solid var(--border);
-  margin-top: 12px;
-  padding-top: 10px;
-}
-
-.mfa-enrolled-section {
-  margin-top: 14px;
-}
-
-.mfa-section-heading {
-  font-size: 0.88rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-}
-
-.mfa-factors-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.mfa-factor-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-}
-
-.mfa-factor-meta {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.mfa-factor-name {
-  font-size: 0.9rem;
-  font-weight: 600;
-  color: var(--text);
-}
-
-.mfa-factor-sub {
-  font-size: 0.75rem;
-  color: var(--text-muted);
-}
-
-.mfa-action-container {
-  margin-top: 14px;
-}
-
-.mfa-notice-box {
-  background: var(--warn-bg);
-  border: 1px solid var(--warn-border);
-  color: var(--warn);
-  font-size: 0.82rem;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  margin-top: 8px;
-  text-align: center;
-}
-
-.mfa-enroll-box {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px 16px;
-  margin-top: 16px;
-  animation: fadeIn 0.15s ease-out;
-}
-
-.mfa-step-desc {
-  font-size: 0.84rem;
-  color: var(--text-secondary);
-  margin-bottom: 8px;
-}
-
-.mfa-qr-container {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 180px;
+/* Compact Enrollment Modal Elements */
+.mfa-enroll-qr-wrap {
+  width: 140px;
+  height: 140px;
+  margin: 4px auto 12px;
   background: #ffffff;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 14px;
-  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
 }
 
-.mfa-qr-img {
-  width: 170px;
-  height: 170px;
+.mfa-enroll-qr-img {
+  width: 126px;
+  height: 126px;
   display: block;
 }
 
-.mfa-secret-box {
+.mfa-enroll-secret-wrap {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 8px;
-  background: #ffffff;
+  background: var(--bg-subtle);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   padding: 6px 10px;
-  margin-bottom: 14px;
 }
 
-.mfa-secret-code {
+.mfa-secret-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.mfa-secret-value {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
   font-weight: 700;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.05em;
   color: var(--primary);
   flex: 1;
-  overflow-x: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
   user-select: all;
+  text-align: center;
 }
 
-.mfa-btn-row {
+/* Compact Manage Modal Elements */
+.mfa-manage-details {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
-.mfa-btn-row .btn {
-  flex: 1;
+.mfa-manage-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.88rem;
+  color: var(--text-secondary);
 }
 
 .vault-mfa-lock {
